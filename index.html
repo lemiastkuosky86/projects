@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<style>
+    /* =========================================
+   RODAPÉ PROFISSIONAL (TRADING DASHBOARD)
+   ========================================= */
+.roleta-footer {
+    width: 100%;
+    margin-top: 40px;
+    padding: 20px 0;
+    background-color: #0b0c10; /* Fundo sólido bem escuro */
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    font-family: 'Inter', sans-serif;
+}
+
+.footer-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    color: #718096; /* Cinza profissional e discreto */
+}
+
+.footer-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.footer-divider {
+    width: 1px;
+    height: 14px;
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.highlight {
+    color: #f39c12; /* O seu laranja/dourado principal */
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+
+.footer-right {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+/* Indicador de Status Estilo Servidor/API */
+.status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(46, 204, 113, 0.05);
+    padding: 5px 12px;
+    border-radius: 6px;
+    border: 1px solid rgba(46, 204, 113, 0.15);
+}
+
+.status-text {
+    color: #2ecc71;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    font-size: 10px;
+}
+
+.pulse-dot {
+    width: 6px;
+    height: 6px;
+    background-color: #2ecc71;
+    border-radius: 50%;
+    box-shadow: 0 0 8px #2ecc71;
+    animation: pulse-animation 2s infinite cubic-bezier(0.4, 0, 0.6, 1);
+}
+
+@keyframes pulse-animation {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(1.3); }
+}
+
+/* Tag de Versão */
+.version-tag {
+    font-weight: 600;
+    color: #a0aec0;
+    display: flex;
+    align-items: center;
+}
+
+.version-name {
+    background: rgba(139, 92, 246, 0.1); /* Roxo sutil (estilo IA/Premium) */
+    color: #a78bfa;
+    padding: 3px 8px;
+    border-radius: 4px;
+    margin-left: 8px;
+    font-size: 10px;
+    font-weight: 800;
+    border: 1px solid rgba(139, 92, 246, 0.25);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Responsividade para Mobile */
+@media (max-width: 768px) {
+    .footer-container {
+        flex-direction: column;
+        gap: 15px;
+        text-align: center;
+    }
+    .footer-left {
+        flex-direction: column;
+        gap: 8px;
+    }
+    .footer-divider {
+        display: none; /* Esconde a barra em pé no celular */
+    }
+}
+</style>
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard de Análise de Roleta</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <header class="main-header">
+            <h1 id="logo" style="display: flex; align-items: center; font-weight: 900; letter-spacing: -0.5px; margin: 0;">
+                <span style="margin-right: 8px; font-size: 1.1em; filter: drop-shadow(0 0 4px rgba(255,255,255,0.2));">📊</span>
+                <span style="color: #ffffff;">Roulette</span>
+                <span style="color: #f39c12; margin-left: 6px;">Pro</span>
+            </h1>
+
+            <style>
+                /* PADRONIZAÇÃO DA BARRA SUPERIOR */
+                .header-buttons {
+                    display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: center;
+                }
+                .header-btn {
+                    height: 40px; padding: 0 16px; border-radius: 10px; font-size: 13px; font-weight: 700;
+                    display: flex; align-items: center; gap: 8px; cursor: pointer; transition: all 0.2s ease;
+                    background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); color: #ccc;
+                    font-family: 'Inter', sans-serif;
+                }
+                .header-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+
+                /* Cores Temáticas de Cada Botão */
+                .btn-ia { border-color: rgba(6, 182, 212, 0.4); color: #06b6d4; background: rgba(6, 182, 212, 0.1); }
+                .btn-ia:hover { background: rgba(6, 182, 212, 0.2); }
+                .btn-banca { border-color: rgba(46, 204, 113, 0.4); color: #2ecc71; background: rgba(46, 204, 113, 0.1); }
+                .btn-banca:hover { background: rgba(46, 204, 113, 0.2); }
+                .btn-avisos { border-color: rgba(243, 156, 18, 0.4); color: #f39c12; background: rgba(243, 156, 18, 0.1); }
+                .btn-avisos:hover { background: rgba(243, 156, 18, 0.2); }
+                .btn-config { border-color: rgba(52, 152, 219, 0.4); color: #3498db; background: rgba(52, 152, 219, 0.1); }
+                .btn-config:hover { background: rgba(52, 152, 219, 0.2); }
+                .btn-danger { border-color: rgba(231, 76, 60, 0.4); color: #e74c3c; background: transparent; }
+                .btn-danger:hover { background: rgba(231, 76, 60, 0.1); }
+                .btn-foco { border-color: rgba(155, 89, 182, 0.4); color: #9b59b6; background: rgba(155, 89, 182, 0.1); }
+                .btn-foco:hover { background: rgba(155, 89, 182, 0.2); }
+
+                /* Bloco do Seletor de Giros (LER) */
+                .header-group {
+                    display: flex; align-items: center; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1);
+                    border-radius: 10px; padding: 4px; height: 40px; box-sizing: border-box; gap: 2px;
+                }
+                .spin-seg-btn {
+                    height: 30px; padding: 0 10px; border-radius: 6px; font-size: 12px; font-weight: 800; cursor: pointer;
+                    border: 1px solid transparent; background: transparent; color: #888; transition: 0.2s;
+                }
+                .spin-seg-btn:hover { color: #fff; background: rgba(255,255,255,0.05); }
+                .spin-seg-btn.active {
+                    background: rgba(243, 156, 18, 0.2); color: #f39c12; border: 1px solid rgba(243, 156, 18, 0.5);
+                }
+                .pause-seg-btn {
+                    height: 30px; width: 30px; border-radius: 6px; border: 1px solid transparent; background: transparent;
+                    color: #888; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s; margin-left: 2px;
+                }
+                .pause-seg-btn:hover { border-color: rgba(255,255,255,0.2); color: #fff; background: rgba(255,255,255,0.05); }
+            </style>
+
+            <div class="header-buttons">
+                <div class="header-group">
+                    <span style="font-size: 11px; color: #777; font-weight: 800; letter-spacing: 1px; padding: 0 10px;">LER</span>
+                    <button class="spin-seg-btn" data-value="25">25</button>
+                    <button class="spin-seg-btn active" data-value="50">50</button>
+                    <button class="spin-seg-btn" data-value="100">100</button>
+                    <div style="width: 1px; height: 20px; background: rgba(255,255,255,0.1); margin: 0 4px;"></div>
+                    <button class="pause-seg-btn" title="Pausar Leitura">⏸️</button>
+                    <select id="select-limite-historico" style="display:none;">
+                        <option value="25">25</option><option value="50" selected>50</option><option value="100">100</option><option value="暂停">Pausar</option>
+                    </select>
+                </div>
+
+                <button id="analisar-timing-btn" class="header-btn btn-ia"><span>✨</span> IA LOCAL</button>
+                <button id="bancaBtn" class="header-btn btn-banca"><span>💰</span> Banca</button>
+                <button id="avisosBtn" class="header-btn btn-avisos"><span>🔔</span> Avisos</button>
+                <button id="configMasterBtn" class="header-btn btn-config"><span>⚙️</span> Configurações</button>
+                <button id="limparBtn" class="header-btn btn-danger">🗑️ Limpar Tudo</button>
+            </div>
+        </header>
+
+        <div id="medidor-mesa-container" class="hidden">
+            <div id="medidor-mesa-texto"></div>
+            <div class="medidor-fundo">
+                <div id="medidor-mesa-barra"></div>
+            </div>
+        </div>
+        
+        <div id="aviso-central-alertas-bar" class="hidden">
+            <span id="aviso-central-alertas-texto"></span>
+            <button id="aviso-central-alertas-btn">Ver Agora</button>
+        </div>
+
+        <div class="banca-resumo-bar">
+            <div class="display-item-resumo">
+                <span class="label">Saldo Atual</span>
+                <span class="value" id="saldo-atual-resumo">R$ 0,00</span>
+            </div>
+            <div class="display-item-resumo">
+                <span class="label">Lucro / Prejuízo</span>
+                <span class="value" id="lucro-prejuizo-resumo">R$ 0,00</span>
+            </div>
+        </div>
+
+        <ul class="tab-nav">
+            <li class="active" data-tab="tab-geral"> Análises Gerais</li>
+            <li data-tab="tab-desempenho"> Análise Geral</li>
+            <li data-tab="tab-sessao"> Sessão Atual</li>
+            <li data-tab="tab-log-jogadas"> Log de Jogadas</li>
+        </ul>
+
+        <div class="card" id="card-historico">
+            <div class="on-off-switch-container">
+                <span class="on-off-label">Fixar</span>
+                <label class="on-off-switch">
+                    <input type="checkbox" id="fixar-historico-check" checked>
+                    <span class="slider round">
+                        <span class="on-text">ON</span>
+                        <span class="off-text">OFF</span>
+                    </span>
+                </label>
+            </div>
+
+            <h2>Histórico e Entrada de Números</h2>
+            
+            <p>Abaixo estão os últimos números sorteados. Você pode adicionar novos números digitando no campo de texto ou clicando na mesa da roleta.</p>
+            
+            <div id="historicoNumeros" class="historico"></div>
+            <div id="input-area" class="input-area-principal">
+                <input type="text" id="numero-input" placeholder="Digite ou cole os números aqui...">
+                <button id="adicionar-numero-btn">Adicionar</button>
+            </div>
+            <hr class="card-divider" style="margin-top: 25px; margin-bottom: 25px;">
+            
+            <h2>Clique em um número para adicionar:</h2>
+            <div id="tabela-roleta-container"></div>
+
+            <br><div id="heatmap-legenda">
+                <div class="legenda-grupo">
+                    <div class="legenda-item">
+                        <span class="cor-amostra frio-3"></span> Frio (Atraso Alto)
+                    </div>
+                    <div class="legenda-item">
+                        <span class="cor-amostra frio-1"></span> Frio (Atraso Médio)
+                    </div>
+                </div>
+                <div class="legenda-grupo">
+                    <div class="legenda-item">
+                        <span class="cor-amostra hot-1"></span> Quente (Frequência Média)
+                    </div>
+                     <div class="legenda-item">
+                        <span class="cor-amostra hot-3"></span> Quente (Frequência Alta)
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="area-de-avisos">
+            <div id="apostas-ativas-container"></div>
+            
+            <div id="alertas-container"></div>
+        </div>
+
+        <main class="main-content-grid">
+            <div class="main-column">
+                <div class="tab-content-container">
+                    <div class="tab-pane active" id="tab-geral">
+                        <div class="card" id="card-quente-frio"><h2>Números Quentes vs Frios</h2>...</div>
+                        <div class="card-grid-2">
+                             <div class="card"><h2>Invictor (Conservadora)</h2><div id="invictor-display"></div></div>
+                             <div class="card"><h2>Invictor (Arrojada)</h2><div id="arrojada-display"></div></div>
+                        </div>
+                        <div class="card"><h2>Atraso Estatístico</h2><div id="statistical-delay-display"></div></div>
+                        <div class="card-grid-2">
+                            <div class="card"><h2>Análise de Atrasos</h2><div id="atrasos-display"></div></div>
+                            <div class="card"><h2>Atraso dos Setores</h2><div id="setores-display"></div></div>
+                        </div>
+                        <div class="card"><h2>Frequência e Números Faltantes</h2><div id="estatisticas-numeros" class="stats-panel"><div id="frequencia-container"></div><hr class="card-divider"><div id="faltantes-container"></div></div></div>
+                    </div>
+
+                    <div class="tab-pane" id="tab-desempenho">
+                        <div class="card">
+                            <h2>Análise Geral</h2>
+                            <p>Este relatório mostra o desempenho consolidado de todas as jogadas desde o início (ou desde o último "Limpar Tudo").</p>
+                            <div id="relatorio-total-container"></div>
+                        </div>
+                    </div>
+
+                    <div class="tab-pane" id="tab-sessao">
+                        <div class="card">
+                             <h2>Resumo da Sessão Atual</h2>
+                             <p>Use o botão abaixo para zerar a contagem e iniciar uma nova sessão de análise a qualquer momento.</p>
+                             <button id="iniciar-sessao-btn" class="btn-secundario" title="Zera as estatísticas da sessão atual e começa uma nova contagem. O relatório total não é afetado.">Zerar Contagem da Sessão</button>
+                             <div id="relatorio-sessao-container"></div>
+                        </div>
+                    </div>
+
+                    <div class="tab-pane" id="tab-log-jogadas">
+                        <div class="card">
+                            <h2>Log Detalhado de Jogadas</h2>
+                            <p>Este é o registro completo de cada aposta realizada. As apostas mais recentes aparecem primeiro.</p>
+                            <div id="log-jogadas-container"></div>
+                        </div>
+                    </div>
+
+                    <div id="modal-config-master-overlay" class="modal-overlay hidden">
+        <div class="modal-content modal-sm" style="max-width: 420px !important; background: rgba(20, 23, 30, 0.95) !important; backdrop-filter: blur(20px) !important; border: 1px solid rgba(255, 255, 255, 0.1) !important; border-radius: 20px !important; box-shadow: 0 20px 50px rgba(0,0,0,0.8) !important; padding: 30px !important;">
+            <button id="modal-config-master-close-btn" class="modal-close" style="color: #fff !important; background: transparent !important; border: none !important; font-size: 24px !important;">&times;</button>
+            
+            <h2 style="text-align: center !important; margin: 0 0 5px 0 !important; font-weight: 900 !important; color: #ffffff !important; letter-spacing: -0.5px !important; border: none !important; background: none !important;">⚙️ Configurações</h2>
+            <p style="text-align: center !important; color: #888888 !important; font-size: 13px !important; margin-bottom: 25px !important; font-weight: normal !important;">Selecione o painel que deseja acessar:</p>
+            
+            <div style="display: flex !important; flex-direction: column !important; gap: 15px !important;">
+                
+                <button id="abrir-config-gerais-btn" onmouseover="this.style.transform='translateY(-3px)'; this.style.filter='brightness(1.2)'" onmouseout="this.style.transform='translateY(0)'; this.style.filter='brightness(1)'" style="background: linear-gradient(145deg, rgba(52, 152, 219, 0.15) 0%, rgba(52, 152, 219, 0.05) 100%) !important; border: 1px solid rgba(52, 152, 219, 0.4) !important; padding: 16px !important; border-radius: 16px !important; display: flex !important; align-items: center !important; gap: 16px !important; cursor: pointer !important; transition: all 0.3s ease !important; text-align: left !important; width: 100% !important; box-shadow: 0 4px 15px rgba(0,0,0,0.3) !important; color: transparent !important; line-height: 1.2 !important; height: auto !important;">
+                    <span style="font-size: 26px !important; background: rgba(52, 152, 219, 0.2) !important; padding: 12px !important; border-radius: 12px !important; border: 1px solid rgba(52, 152, 219, 0.4) !important; display: flex !important; align-items: center !important; justify-content: center !important; color: #fff !important;">🛠️</span>
+                    <div style="display: flex !important; flex-direction: column !important; gap: 4px !important;">
+                        <span style="font-size: 16px !important; font-weight: 800 !important; color: #3498db !important; font-family: 'Inter', sans-serif !important;">Gerais e Sistema</span>
+                        <span style="font-size: 12px !important; color: #aaaaaa !important; font-weight: 500 !important; font-family: 'Inter', sans-serif !important;">Banca, Heatmap, Sons e API da IA</span>
+                    </div>
+                </button>
+                
+                <button id="abrir-gerenciador-estrategias-btn" onmouseover="this.style.transform='translateY(-3px)'; this.style.filter='brightness(1.2)'" onmouseout="this.style.transform='translateY(0)'; this.style.filter='brightness(1)'" style="background: linear-gradient(145deg, rgba(243, 156, 18, 0.15) 0%, rgba(243, 156, 18, 0.05) 100%) !important; border: 1px solid rgba(243, 156, 18, 0.4) !important; padding: 16px !important; border-radius: 16px !important; display: flex !important; align-items: center !important; gap: 16px !important; cursor: pointer !important; transition: all 0.3s ease !important; text-align: left !important; width: 100% !important; box-shadow: 0 4px 15px rgba(0,0,0,0.3) !important; color: transparent !important; line-height: 1.2 !important; height: auto !important;">
+                    <span style="font-size: 26px !important; background: rgba(243, 156, 18, 0.2) !important; padding: 12px !important; border-radius: 12px !important; border: 1px solid rgba(243, 156, 18, 0.4) !important; display: flex !important; align-items: center !important; justify-content: center !important; color: #fff !important;">🎯</span>
+                    <div style="display: flex !important; flex-direction: column !important; gap: 4px !important;">
+                        <span style="font-size: 16px !important; font-weight: 800 !important; color: #f39c12 !important; font-family: 'Inter', sans-serif !important;">Gerenciar Estratégias</span>
+                        <span style="font-size: 12px !important; color: #aaaaaa !important; font-weight: 500 !important; font-family: 'Inter', sans-serif !important;">Criar, Ativar/Desativar e Ajustar Timings</span>
+                    </div>
+                </button>
+                
+                <button id="abrir-habilitar-estrategias-btn" style="display:none"></button>
+                <button id="abrir-config-padrao-btn" style="display:none"></button>
+            </div>
+        </div>
+    </div>
+                </div>
+            </div>
+        </main>
+        
+        <footer class="roleta-footer">
+            <div class="footer-container">
+                <div class="footer-left">
+                    <span class="copyright">© 2026 Dashboard Roleta</span>
+                    <span class="footer-divider"></span>
+                    <span class="developer">Desenvolvido por <span class="highlight">Le Miastkuosky</span></span>
+                </div>
+                
+                <div class="footer-right">
+                    <div class="status-indicator">
+                        <span class="pulse-dot"></span>
+                        <span class="status-text">Sistema Online</span>
+                    </div>
+                    <div class="version-tag">
+                        v2.3 <span class="version-name">Alert Center</span>
+                    </div>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <div id="modal-numero-overlay" class="modal-overlay hidden"><div class="modal-content"><button id="modal-close-btn" class="modal-close">&times;</button><div id="modal-body"></div></div></div>
+    
+    <div id="modal-avisos-overlay" class="modal-overlay hidden" style="display:none!important;"></div>
+
+    <div id="modal-estrategia-overlay" class="modal-overlay hidden">
+        <div class="modal-content">
+            <button id="modal-estrategia-close-btn" class="modal-close">&times;</button>
+            <h2 id="modal-estrategia-titulo">Criar Nova Estratégia</h2>
+            <div class="form-group"><label for="estrategia-nome-input">Nome da Estratégia</label><input type="text" id="estrategia-nome-input" placeholder="Ex: Vizinhos do 29"></div>
+            <div class="form-group"><label for="estrategia-gatilhos-input">Números de Gatilho</label><input type="text" id="estrategia-gatilhos-input" placeholder="Digite os números separados por vírgula. Ex: 1, 14, 28"></div>
+            <div class="form-group"><label for="estrategia-alvos-input">Números Alvo</label><input type="text" id="estrategia-alvos-input" placeholder="Digite os números separados por vírgula. Ex: 29"></div>
+            <div class="form-group"><label for="estrategia-vizinhos-input">Quantidade de Vizinhos</label><input type="number" id="estrategia-vizinhos-input" value="0" min="0" max="10"></div>
+            <input type="hidden" id="estrategia-id-input">
+            <div class="modal-actions"><button id="salvar-estrategia-btn" class="btn-primario">Salvar Estratégia</button></div>
+        </div>
+    </div>
+
+    <div id="modal-banca-overlay" class="modal-overlay hidden">
+        <div class="modal-content modal-lg">
+            <button id="modal-banca-close-btn" class="modal-close">&times;</button>
+            <h2>Gerenciamento de Banca</h2>
+            <div class="banca-grid">
+                <div class="banca-input-group">
+                    <div class="form-group">
+                        <label for="banca-inicial-input">Banca Inicial (R$)</label>
+                        <input type="number" id="banca-inicial-input" value="1000" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label>Valor da Unidade (Ficha)</label>
+                        <div id="chip-selector-container">
+                            <button class="chip-btn" data-value="0.50">R$ 0,50</button><button class="chip-btn active" data-value="1">R$ 1,00</button><button class="chip-btn" data-value="2">R$ 2,00</button><button class="chip-btn" data-value="5">R$ 5,00</button><button class="chip-btn" data-value="10">R$ 10,00</button><button class="chip-btn" data-value="25">R$ 25,00</button><button class="chip-btn" data-value="50">R$ 50,00</button><button class="chip-btn" data-value="100">R$ 100,00</button>
+                        </div>
+                    </div>
+
+                    <div class="banca-metas-group">
+                        <h4>Metas da Sessão (Opcional)</h4>
+                        <div class="form-group">
+                            <label for="stop-gain-input">Meta de Lucro (Stop-Gain)</label>
+                            <input type="number" id="stop-gain-input" placeholder="Ex: 100" min="0">
+                        </div>
+                        <div class="form-group">
+                            <label for="stop-loss-input">Limite de Perda (Stop-Loss)</label>
+                            <input type="number" id="stop-loss-input" placeholder="Ex: 50" min="0">
+                        </div>
+                    </div>
+
+                    <button id="iniciar-banca-btn" class="btn-secundario">Iniciar / Resetar Banca</button>
+                    
+                    <hr class="card-divider" style="margin-top: 20px;">
+                    
+                    <div class="form-group">
+                        <label for="prejuizo-manual-input">Lançar Prejuízo Manual (R$)</label>
+                        <input type="number" id="prejuizo-manual-input" placeholder="Ex: 50.00" min="0">
+                    </div>
+                    <button id="aplicar-prejuizo-btn" class="btn-secundario" style="border-color: var(--accent-red); color: var(--accent-red);">Aplicar Prejuízo</button>
+                </div>
+
+                <div class="banca-display-group">
+                    <div class="display-item"><span class="label">Saldo Atual</span><span class="value" id="saldo-atual-display">R$ 0,00</span></div>
+                    <div class="display-item"><span class="label">Lucro / Prejuízo</span><span class="value" id="lucro-prejuizo-display">R$ 0,00</span></div>
+                    <div class="display-item"><span class="label">Unidades em Jogo</span><span class="value" id="unidades-em-jogo-display">0</span></div>
+                    
+                    <div class="banca-historico">
+                        <h3>Histórico de Transações</h3>
+                        <div id="banca-historico-container"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="modal-config-padrao-overlay" class="modal-overlay hidden" style="display:none!important;"></div>
+
+    <div id="modal-gerenciador-overlay" class="modal-overlay hidden">
+        <div class="modal-content modal-lg" style="max-height:90vh;display:flex;flex-direction:column;">
+            <button id="modal-gerenciador-close-btn" class="modal-close">&times;</button>
+            <h2>⚙️ Gerenciador de Estratégias</h2>
+
+            <!-- Abas internas -->
+            <div id="ger-tab-nav" style="display:flex;gap:4px;margin:12px 0 16px;border-bottom:2px solid var(--border-color);padding-bottom:0;">
+                <button class="ger-tab-btn active" data-ger-tab="ger-lista"    style="padding:7px 14px;border:none;background:none;cursor:pointer;font-size:13px;font-weight:600;color:var(--accent-blue);border-bottom:2px solid var(--accent-blue);margin-bottom:-2px;">📋 Estratégias</button>
+                <button class="ger-tab-btn"        data-ger-tab="ger-ativar"   style="padding:7px 14px;border:none;background:none;cursor:pointer;font-size:13px;color:var(--text-secondary);">✅ Ativar/Desativar</button>
+                <button class="ger-tab-btn"        data-ger-tab="ger-timing"   style="padding:7px 14px;border:none;background:none;cursor:pointer;font-size:13px;color:var(--text-secondary);">⏱️ Timing</button>
+                <button class="ger-tab-btn"        data-ger-tab="ger-avisos"   style="padding:7px 14px;border:none;background:none;cursor:pointer;font-size:13px;color:var(--text-secondary);">🔔 Avisos</button>
+            </div>
+
+            <!-- Aba: Estratégias (lista + criar) -->
+            <div id="ger-lista" class="ger-tab-pane" style="flex:1;overflow-y:auto;">
+                <div style="margin-bottom:16px;">
+                    <button id="abrir-modal-estrategia-btn" class="btn-secundario">+ Adicionar Nova Estratégia</button>
+                </div>
+                <div id="lista-todas-estrategias-container" class="lista-gerenciador"></div>
+            </div>
+
+            <!-- Aba: Ativar/Desativar -->
+            <div id="ger-ativar" class="ger-tab-pane" style="display:none;flex:1;overflow-y:auto;">
+                <p style="margin-bottom:12px;color:var(--text-secondary);font-size:13px;">Marque ou desmarque estratégias. Arraste para reordenar a prioridade.</p>
+                <div id="habilitar-estrategias-container" style="max-height:55vh;overflow-y:auto;padding-right:8px;"></div>
+            </div>
+
+            <!-- Aba: Timing e Nomes -->
+            <div id="ger-timing" class="ger-tab-pane" style="display:none;flex:1;overflow-y:auto;">
+                <p style="margin-bottom:12px;color:var(--text-secondary);font-size:13px;">Ajuste o tempo dos alertas e os nomes de exibição das estratégias.</p>
+                <div id="estrategias-container" class="config-padrao-lista"></div>
+            </div>
+
+            <!-- Aba: Avisos -->
+            <div id="ger-avisos" class="ger-tab-pane" style="display:none;flex:1;overflow-y:auto;">
+                <p style="margin-bottom:12px;color:var(--text-secondary);font-size:13px;">Selecione quais estratégias devem gerar alertas na tela.</p>
+                <div class="modal-avisos-acoes" style="margin-bottom:12px;">
+                    <button id="selecionar-todos-avisos-btn" class="btn-secundario-pequeno">Marcar Todos</button>
+                    <button id="desmarcar-todos-avisos-btn" class="btn-secundario-pequeno">Desmarcar Todos</button>
+                </div>
+                <div id="avisos-estrategias-container"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Script de controle das abas do gerenciador -->
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Controla abas internas do gerenciador
+        document.getElementById('ger-tab-nav').addEventListener('click', function(e) {
+            const btn = e.target.closest('.ger-tab-btn');
+            if (!btn) return;
+            document.querySelectorAll('.ger-tab-btn').forEach(b => {
+                b.style.color = 'var(--text-secondary)';
+                b.style.borderBottom = 'none';
+            });
+            btn.style.color = 'var(--accent-blue)';
+            btn.style.borderBottom = '2px solid var(--accent-blue)';
+            document.querySelectorAll('.ger-tab-pane').forEach(p => p.style.display = 'none');
+            document.getElementById(btn.dataset.gerTab).style.display = 'block';
+        });
+
+        // Redireciona botões antigos para abrir gerenciador na aba certa
+        var abrirGer = function(tabId) {
+            document.getElementById('modal-gerenciador-overlay').classList.remove('hidden');
+            document.querySelectorAll('.ger-tab-btn').forEach(b => {
+                const ativo = b.dataset.gerTab === tabId;
+                b.style.color = ativo ? 'var(--accent-blue)' : 'var(--text-secondary)';
+                b.style.borderBottom = ativo ? '2px solid var(--accent-blue)' : 'none';
+            });
+            document.querySelectorAll('.ger-tab-pane').forEach(p => p.style.display = 'none');
+            var pane = document.getElementById(tabId);
+            if (pane) pane.style.display = 'block';
+        };
+
+        var btnH = document.getElementById('abrir-habilitar-estrategias-btn');
+        if (btnH) btnH.addEventListener('click', function(e) { e.stopImmediatePropagation(); abrirGer('ger-ativar'); });
+
+        var btnC = document.getElementById('abrir-config-padrao-btn');
+        if (btnC) btnC.addEventListener('click', function(e) { e.stopImmediatePropagation(); abrirGer('ger-timing'); });
+
+        var btnA = document.getElementById('avisosBtn');
+        if (btnA) btnA.addEventListener('click', function(e) { e.stopImmediatePropagation(); abrirGer('ger-avisos'); });
+    });
+    </script>
+
+    <div id="modal-central-alertas-overlay" class="modal-overlay hidden">
+        <div class="modal-content modal-lg">
+            <button id="modal-central-alertas-close-btn" class="modal-close">&times;</button>
+            <h2>Central de Alertas</h2>
+            <p>Alertas ativos, ordenados por prioridade.</p>
+            
+            <div id="central-alertas-filtros" class="filtros-container">
+                <button class="filtro-btn active" data-prioridade="todos">Todos</button>
+                <button class="filtro-btn" data-prioridade="1">Prioridade 1 (Alta)</button>
+                <button class="filtro-btn" data-prioridade="2">Prioridade 2 (Média)</button>
+                <button class="filtro-btn" data-prioridade="3">Prioridade 3 (Baixa)</button>
+            </div>
+
+            <div id="central-alertas-container">
+                </div>
+        </div>
+    </div>
+    
+    <div id="modal-importar-overlay" class="modal-overlay hidden">
+        <div class="modal-content">
+            <button id="modal-importar-close-btn" class="modal-close">&times;</button>
+            <h2>Importar Histórico de Números</h2>
+            <p id="importar-instrucao">Cole a imagem (Ctrl+V) na área pontilhada abaixo.</p>
+            
+            <div id="paste-area">
+                </div>
+
+            <div id="ocr-progress" class="hidden">Analisando imagem...</div>
+
+            <div class="form-group" style="margin-top: 15px;">
+                <label>Números extraídos (verifique e corrija se necessário):</label>
+                <textarea id="importar-texto-area" rows="6" placeholder="Os números da imagem aparecerão aqui..."></textarea>
+            </div>
+
+            <div class="modal-actions" style="display: flex; justify-content: space-between;">
+                <button id="read-from-selection-btn" class="btn-secundario" disabled>Ler da Seleção</button>
+                <button id="import-from-text-btn" class="btn-primario">Importar Números</button>
+            </div>
+        </div>
+    </div>
+    <div id="custom-alert-overlay" class="modal-overlay hidden">
+        <div class="modal-content modal-sm">
+            <button id="custom-alert-close-btn" class="modal-close">&times;</button>
+            <div id="custom-alert-message" class="popup-message">
+                </div>
+            <div class="modal-actions" style="text-align: center; padding-bottom: 20px;">
+                <button id="custom-alert-ok-btn" class="btn-primario">OK</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="custom-confirm-overlay" class="modal-overlay hidden">
+        <div class="modal-content modal-sm">
+            <div id="custom-confirm-message" class="popup-message">
+                </div>
+            <div class="modal-actions" style="display: flex; justify-content: center; gap: 15px; padding-bottom: 20px;">
+                <button id="custom-confirm-cancel-btn" class="btn-secundario">Cancelar</button>
+                <button id="custom-confirm-ok-btn" class="btn-primario">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-config-gerais-overlay" class="modal-overlay hidden">
+        <div class="modal-content">
+            <button id="modal-config-gerais-close-btn" class="modal-close">&times;</button>
+            <h2>Configurações Gerais</h2>
+            <div id="configuracoes-gerais-container">
+                <div class="aviso-config-item">
+                    <div class="strategy-toggle-content">
+                        <label for="habilitar-banca-check">Habilitar Funcionalidade de Banca</label>
+                        <input type="checkbox" id="habilitar-banca-check">
+                    </div>
+                </div>
+                <div class="aviso-config-item">
+                    <div class="strategy-toggle-content">
+                        <label for="habilitar-heatmap-check">Habilitar Heatmap na Mesa</label>
+                        <input type="checkbox" id="habilitar-heatmap-check" checked>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-habilitar-estrategias-overlay" class="modal-overlay hidden" style="display:none!important;"></div>
+    <script src="firebase-init.js"></script>
+    <script src="script.js"></script>
+    <script src="bridge.js"></script>
+</body>
+</html>
