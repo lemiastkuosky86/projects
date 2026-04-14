@@ -17,15 +17,15 @@
     segmentsPerPlatform: 12, 
     
     // --- MUDANÇAS DA VERSÃO FÁCIL ---
-    holeSegments: 3,         // AUMENTADO: O buraco de descida agora é maior (ocupa 3 fatias), facilitando muito a passagem.
-    dangerStartLevel: 6,     // AUMENTADO: O jogador desce as primeiras 5 plataformas sem NENHUM perigo (tudo azul).
-    dangerProgression: 10,   // AUMENTADO: Demora muito mais andares para o jogo adicionar mais fatias vermelhas.
-    dangerMaxSlices: 2,      // REDUZIDO: O máximo de fatias vermelhas por andar nunca passa de 2 (sobrando muito espaço seguro).
+    holeSegments: 3,         
+    dangerStartLevel: 6,     
+    dangerProgression: 10,   
+    dangerMaxSlices: 2,      
     // --------------------------------
     
     cameraFov: 60, cameraDistance: 11.0, cameraHeight: 6.5, cameraOffsetDown: 3.5,
     postExtraTop: 20.0, cameraFollowSpeed: 0.15, rotationSensitivity: 0.008,
-    targetMultiplier: 8, // Meta de R$ 80 (10 de entrada * 8)
+    targetMultiplier: 8, 
     latheSegments: 32
   };
 
@@ -35,7 +35,7 @@
     { name:'Mint', platforms:0x8CE8A5, alt:0xB0F5C0, ball:0xFFFFFF, pole:0x208A40, bgTop:'#E0FFE8', bgBottom:'#A0F0B0', killer:0x102010, topCap:0x208A40 }
   ];
 
-  var gameActive = false, betAmount = 10, platformsPassed = 0; // Valor de entrada travado em R$ 10
+  var gameActive = false, betAmount = 10, platformsPassed = 0; 
   var gamePhase = 'ready', prizeAmount = 0;
   var currentPaletteIndex = 0, comboCount = 0, comboTimer = 0;
   var scene, camera, renderer, helixGroup, postMesh, ballMesh, topCapMesh;
@@ -46,9 +46,7 @@
   var lastGeneratedPlatformIndex = 0; 
   var audioCtx = null; var audioUnlocked = false;
 
-  // FUNÇÃO DE INÍCIO EXCLUSIVA DO DEMO
   window.startHelixDemo = function() {
-    // Remove o popup se ele já estiver na tela
     var oldModal = document.getElementById('demoConversionModal');
     if (oldModal) oldModal.remove();
 
@@ -247,30 +245,45 @@
     cleanupHUD();
     var container = document.getElementById('gameCanvas').parentElement;
     hudContainer = document.createElement('div');
-    hudContainer.id = 'helix-hud';
-    hudContainer.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:100;';
+    hudContainer.id = 'hud-container';
+    // Estilo EXATO do seu snippet
+    hudContainer.style.cssText = 'position: fixed; top: 0px; left: 0px; right: 0px; z-index: 1000; background: linear-gradient(rgba(0, 0, 0, 0.85) 0%, transparent 100%); padding: 12px 16px 20px; display: block; font-family: "Inter", sans-serif;';
 
-    // UI Exclusiva do modo Demo (Sem botão de resgatar)
-    var html = '<div style="position:absolute;top:12px;left:12px;z-index:100;background:rgba(0,0,0,0.55);color:#fff;padding:6px 14px;border-radius:12px;font-family:Inter,sans-serif;backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.15);">'
-      + '<div style="font-size:9px;text-transform:uppercase;letter-spacing:1px;opacity:0.7;">MODO DEMO</div>'
-      + '<div style="font-size:16px;font-weight:800;">R$ 10,00</div></div>';
+    hudContainer.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+        <div style="display:flex;flex-direction:column;gap:2px">
+          <div style="font-size:11px;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.5px">Aposta</div>
+          <div id="hud-aposta" style="font-size:16px;font-weight:800;color:#fff">R$ ${fmtBRL(betAmount)}</div>
+        </div>
 
-    html += '<div style="position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:100;background:rgba(0,0,0,0.55);color:#fff;padding:8px 16px;border-radius:12px;font-family:Inter,sans-serif;min-width:160px;text-align:center;backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.15);max-width:calc(100% - 140px);">'
-      + '<div style="font-size:9px;text-transform:uppercase;letter-spacing:1px;opacity:0.7;">Acumulado / Meta</div>'
-      + '<div style="font-size:14px;font-weight:800;" id="hud-progress-val">R$ 0,00 / R$ 80,00</div>'
-      + '<div style="width:100%;height:4px;background:rgba(255,255,255,0.15);border-radius:2px;margin-top:4px;overflow:hidden;">'
-      + '<div id="hud-progress-bar" style="width:0%;height:100%;background:linear-gradient(90deg,#00e676,#69f0ae);border-radius:2px;transition:width 0.3s;"></div></div></div>';
+        <div style="flex:1;max-width:360px;text-align:center">
+          <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:5px">
+            <div id="hud-acumulado" style="font-size:20px;font-weight:800;color:#00C97A;transition:all .2s">R$ 0,00</div>
+            <div style="font-size:12px;color:rgba(255,255,255,.4)">/</div>
+            <div id="hud-meta" style="font-size:14px;color:rgba(255,255,255,.6)">R$ 80,00</div>
+          </div>
+          <div style="background:rgba(255,255,255,.1);border-radius:50px;height:6px;overflow:hidden">
+            <div id="hud-barra" style="height: 100%; border-radius: 50px; background: linear-gradient(90deg, rgb(0, 201, 122), rgb(77, 158, 255)); width: 0%; transition: width 0.3s;"></div>
+          </div>
+          <div id="hud-plat" style="font-size:11px;color:rgba(255,255,255,.4);margin-top:4px">0 plataformas • +R$ 0,00/plat</div>
+        </div>
 
-    html += '<div id="hud-start" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:100;font-family:Inter,sans-serif;text-align:center;pointer-events:none;">'
-      + '<div style="font-size:20px;font-weight:700;color:rgba(0,0,0,0.6);">Toque para testar</div>'
-      + '<div style="font-size:28px;margin-top:8px;color:rgba(0,0,0,0.4);animation:helixBounce 1s infinite;">&#8595;</div></div>';
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+          <div style="font-size:11px;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.5px">Meta</div>
+          <div id="hud-meta-label" style="font-size:16px;font-weight:800;color:#FFD700">R$ 80,00</div>
+          <button onclick="window.sairDoDemo('#login')" style="
+            background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);
+            border-radius:8px;padding:4px 10px;color:rgba(255,255,255,.5);
+            font-size:11px;cursor:pointer;font-family:inherit
+          ">Sair</button>
+        </div>
+      </div>
+      <div id="hud-combo" style="position:absolute;bottom:-150px;left:50%;transform:translateX(-50%);font-size:24px;font-weight:800;color:#ffab00;text-shadow:0 2px 8px rgba(255,171,0,0.5);opacity:0;transition:all 0.3s;pointer-events:none;"></div>
+      <div id="hud-score-popup" style="position:absolute;top:45vh;left:50%;transform:translate(-50%,-50%);font-size:36px;font-weight:900;color:#fff;text-shadow:0 2px 10px rgba(0,0,0,0.3);opacity:0;pointer-events:none;"></div>
+    `;
 
-    html += '<div id="hud-combo" style="position:absolute;bottom:150px;left:50%;transform:translateX(-50%);z-index:100;pointer-events:none;font-family:Inter,sans-serif;font-size:24px;font-weight:800;color:#ffab00;text-shadow:0 2px 8px rgba(255,171,0,0.5);opacity:0;transition:all 0.3s;"></div>';
-    html += '<div id="hud-score-popup" style="position:absolute;top:45%;left:50%;transform:translate(-50%,-50%);z-index:100;pointer-events:none;font-family:Inter,sans-serif;font-size:36px;font-weight:900;color:#fff;text-shadow:0 2px 10px rgba(0,0,0,0.3);opacity:0;"></div>';
-
-    hudContainer.innerHTML = html;
     var style = document.createElement('style');
-    style.textContent = '@keyframes helixBounce{0%,100%{transform:translateY(0)}50%{transform:translateY(10px)}}@keyframes helixFadeUp{0%{opacity:1;transform:translate(-50%,-50%) scale(1)}100%{opacity:0;transform:translate(-50%,-80%) scale(1.5)}}';
+    style.textContent = '@keyframes helixFadeUp{0%{opacity:1;transform:translate(-50%,-50%) scale(1)}100%{opacity:0;transform:translate(-50%,-80%) scale(1.5)}}';
     hudContainer.appendChild(style);
     container.appendChild(hudContainer);
     
@@ -283,15 +296,20 @@
 
   function updateHUD() {
     if (!hudContainer) return;
-    var pv = document.getElementById('hud-progress-val');
-    var pb = document.getElementById('hud-progress-bar');
-    var ss = document.getElementById('hud-start');
+    var acc = document.getElementById('hud-acumulado');
+    var bar = document.getElementById('hud-barra');
+    var plat = document.getElementById('hud-plat');
 
     var prize = calcPrize(); prizeAmount = prize;
+    var target = 80;
+    var percentage = Math.min(100, (prize / target) * 100);
 
-    if(pv) pv.textContent = 'R$ ' + fmtBRL(prize) + ' / R$ 80,00';
-    if(pb) pb.style.width = Math.min(100, (prize / 80) * 100) + '%';
-    if (ss) ss.style.display = gamePhase === 'ready' ? 'block' : 'none';
+    if(acc) acc.textContent = 'R$ ' + fmtBRL(prize);
+    if(bar) bar.style.width = percentage + '%';
+    if(plat) {
+        var valPerPlat = platformsPassed > 0 ? (prize / platformsPassed) : 0;
+        plat.textContent = platformsPassed + ' plataformas • +R$ ' + fmtBRL(valPerPlat) + '/plat';
+    }
   }
 
   function calcPrize() {
@@ -379,17 +397,13 @@
     if (gamePhase === 'playing') {
       ballVelY += CONFIG.gravity;
       ballWorldY -= ballVelY;
-      
       if (ballMesh) {
         ballMesh.position.y = ballWorldY;
         ballMesh.position.z = (CONFIG.platformInnerRadius + CONFIG.platformOuterRadius) / 2; ballMesh.position.x = 0;
       }
-      
       if (comboTimer > 0) { comboTimer--; if (comboTimer <= 0) comboCount = 0; }
       checkCollisions();
-      
       if (Math.abs(ballWorldY) > (lastGeneratedPlatformIndex - 10) * CONFIG.platformSpacing) generateSinglePlatform(lastGeneratedPlatformIndex + 1);
-
       for (var i = platforms.length - 1; i >= 0; i--) {
           if (platforms[i].y > ballWorldY + 15) {
               helixGroup.remove(platforms[i].group);
@@ -398,13 +412,11 @@
           }
       }
     }
-
     if (camera && gamePhase !== 'ready') {
       cameraTargetY = ballWorldY + CONFIG.cameraHeight;
       camera.position.y += (cameraTargetY - camera.position.y) * CONFIG.cameraFollowSpeed;
       camera.lookAt(0, camera.position.y - CONFIG.cameraHeight - CONFIG.cameraOffsetDown, 0);
     }
-
     updateSplash();
     var np = Math.min(Math.floor(platformsPassed / 5), PALETTES.length - 1);
     if (np !== currentPaletteIndex) { currentPaletteIndex = np; updatePaletteColors(); }
@@ -416,31 +428,24 @@
     var ballAngle = normAngle((3 * Math.PI / 2) - helixRotation);
     var ballRadiusAngle = Math.asin(CONFIG.ballRadius / ((CONFIG.platformInnerRadius + CONFIG.platformOuterRadius) / 2));
     var killMargin = ballRadiusAngle * 0.6; 
-
     for (var i = 0; i < platforms.length; i++) {
       var p = platforms[i];
       if (p.passed) continue;
       var platTop = p.y + CONFIG.platformHeight / 2;
       var platBottom = p.y - CONFIG.platformHeight / 2;
-      
       if (ballWorldY <= platTop + (CONFIG.ballRadius * 0.5) && ballWorldY >= platBottom && ballVelY > 0) {
         var inHole = isAngleInRange(ballAngle, p.holeStart, p.holeStart + p.holeSize);
         if (inHole) {
           p.passed = true; platformsPassed++;
           comboCount++; comboTimer = 60;
           if (comboCount >= 3) showCombo(comboCount);
-          
           var oldP = prizeAmount;
           var newP = calcPrize();
           prizeAmount = newP; 
-
           playMoneySound();
           showScorePopup('+R$ ' + fmtBRL(newP - oldP));
-          
           p.segments.forEach(function(seg) { seg.mesh.material.transparent = true; seg.mesh.material.opacity = 0.2; });
           createSplash(p.y);
-
-          // VERIFICA SE BATEU A META DE 80 REAIS NO DEMO
           if (newP >= 80) {
               if (ballMesh) ballMesh.visible = false;
               createSplash(ballWorldY);
@@ -449,7 +454,6 @@
           }
         } else {
           var hitDanger = p.segments.some(seg => seg.isKiller && isAngleInRange(ballAngle, seg.startAngle - killMargin, seg.endAngle + killMargin));
-          
           if (hitDanger) { 
             if (ballMesh) ballMesh.visible = false;
             createSplash(ballWorldY); createSplash(ballWorldY - 0.1); 
@@ -473,95 +477,69 @@
     var finalScore = platformsPassed;
     var finalPrize = calcPrize(); 
     gamePhase = 'gameover'; 
-    
     setTimeout(function() { gameActive = false; }, 1500); 
-
     setTimeout(function() {
-      // GERA O POPUP DE CONVERSÃO DIRETAMENTE NA TELA DO JOGO
       showDemoConversionPopup(finalPrize, finalScore, isWin);
     }, 500); 
   }
 
-  // --- POPUP INJETADO DIRETAMENTE VIA JS (SEM PRECISAR DE HTML NO INDEX) ---
   function showDemoConversionPopup(prize, score, isWin) {
       var gameScreen = document.getElementById('gameCanvas').parentElement;
       if (!gameScreen) return;
-
       var modal = document.createElement('div');
       modal.id = 'demoConversionModal';
       modal.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:10000;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(8px);padding:15px; box-sizing:border-box; font-family: "Inter", sans-serif;';
-
       var iconHtml = isWin ? 
         '<div style="width:50px;height:50px;border-radius:50%;background:linear-gradient(135deg, #00e676, #1de9b6);display:flex;align-items:center;justify-content:center;font-size:24px;color:#fff;font-weight:900;margin:0 auto 12px;box-shadow:0 0 20px rgba(0,230,118,0.4);flex-shrink:0;">🎉</div>' : 
         '<div style="width:50px;height:50px;border-radius:50%;background:linear-gradient(135deg, #ff5722, #ff9800);display:flex;align-items:center;justify-content:center;font-size:24px;color:#fff;font-weight:900;margin:0 auto 12px;box-shadow:0 0 20px rgba(255,87,34,0.4);flex-shrink:0;">!</div>';
-
       var titleText = isWin ? 
         '<h2 style="color:#00e676;font-size:clamp(20px, 5vw, 24px);font-weight:900;margin-bottom:6px;text-transform:uppercase;">PARABÉNS!</h2>' : 
         '<h2 style="color:#fff;font-size:clamp(20px, 5vw, 24px);font-weight:900;margin-bottom:6px;text-transform:uppercase;">😔 QUE PENA!</h2>';
-
       var descText = isWin ? 
         '<p style="color:#a0a0c0;font-size:clamp(12px, 3.5vw, 14px);margin-bottom:15px;line-height:1.4;">Você bateu a meta e acumulou <b>R$ ' + fmtBRL(prize) + '</b>!<br>Crie sua conta para resgatar dinheiro de verdade.</p>' : 
         '<p style="color:#a0a0c0;font-size:clamp(12px, 3.5vw, 14px);margin-bottom:15px;line-height:1.4;">Você acumulou <b>R$ ' + fmtBRL(prize) + '</b> mas não resgatou a tempo.<br>Na próxima você consegue!</p>';
-
       var boxBorder = isWin ? 'rgba(0,230,118,0.2)' : 'rgba(255,100,100,0.2)';
       var prizeColor = isWin ? '#00e676' : '#ff7575';
       var boxLabel = isWin ? 'VOCÊ ACUMULOU' : 'VOCÊ PODERIA TER RESGATADO';
-
       var scrollStyle = '<style>#demoConversionModalInner::-webkit-scrollbar { display: none; } #demoConversionModalInner { -ms-overflow-style: none; scrollbar-width: none; }</style>';
-
       modal.innerHTML = scrollStyle + `
         <div id="demoConversionModalInner" style="background:#0f071a; border:1px solid rgba(255,255,255,0.05); border-radius:24px; padding:20px 15px; width:100%; max-width:400px; max-height:90vh; overflow-y:auto; text-align:center; box-shadow:0 20px 50px rgba(0,0,0,0.5); box-sizing:border-box;">
-          ${iconHtml}
-          ${titleText}
-          ${descText}
-
+          ${iconHtml} ${titleText} ${descText}
           <div style="background:rgba(255,255,255,0.03);border:1px solid ${boxBorder};border-radius:16px;padding:15px;margin-bottom:15px;">
             <div style="font-size:10px;text-transform:uppercase;color:#a0a0c0;letter-spacing:1px;font-weight:700;margin-bottom:5px;">${boxLabel}</div>
             <div style="font-size:clamp(30px, 8vw, 42px);font-weight:900;color:${prizeColor};line-height:1;">R$ ${fmtBRL(prize)}</div>
             <div style="font-size:12px;color:#a0a0c0;margin-top:5px;">${score} plataformas passadas</div>
           </div>
-
           <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.05);border-radius:12px;padding:10px;margin-bottom:10px;display:flex;align-items:center;gap:8px;font-size:clamp(11px, 3.5vw, 13px);color:#d0d0e0;text-align:left;">
             <div style="color:#00e676;font-size:16px;flex-shrink:0;">✅</div>
             <div>Mais de <strong style="color:#00e676;">12.000 jogadores</strong> já resgataram prêmios esta semana</div>
           </div>
-
           <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.05);border-radius:12px;padding:10px;margin-bottom:15px;display:flex;align-items:center;gap:8px;font-size:clamp(11px, 3.5vw, 13px);color:#d0d0e0;text-align:left;">
             <div style="font-size:16px;flex-shrink:0;">🎁</div>
             <div><strong style="color:#ff4081;">Ganhe 50% de bônus</strong> no primeiro depósito — oferta por tempo limitado!</div>
           </div>
-
           <p style="font-size:clamp(10px, 3vw, 12px);color:#a0a0c0;margin-bottom:15px;line-height:1.3;">Com uma conta real você pode resgatar de verdade. Não perca mais oportunidades!</p>
-
           <button onclick="window.sairDoDemo('#cadastro')" style="width:100%;background:linear-gradient(135deg, #ff4081, #d500f9);color:#fff;border:none;padding:clamp(12px, 3.5vw, 16px);border-radius:50px;font-size:clamp(12px, 3.5vw, 15px);font-weight:900;text-transform:uppercase;margin-bottom:10px;cursor:pointer;box-shadow:0 10px 20px rgba(213,0,249,0.3);display:flex;align-items:center;justify-content:center;gap:8px;">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
             CRIAR CONTA E GANHAR DE VERDADE
           </button>
-
           <button onclick="window.sairDoDemo('#login')" style="width:100%;background:rgba(255,255,255,0.05);color:#fff;border:1px solid rgba(255,255,255,0.1);padding:clamp(12px, 3.5vw, 16px);border-radius:50px;font-size:clamp(12px, 3.5vw, 14px);font-weight:700;text-transform:uppercase;margin-bottom:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path><polyline points="10 17 15 12 10 7"></polyline><line x1="15" y1="12" x2="3" y2="12"></line></svg>
             JÁ TENHO CONTA — ENTRAR
           </button>
-
           <div style="font-size:9px;color:rgba(255,255,255,0.2);line-height:1.4;">Estes valores são fictícios e servem apenas para demonstração.<br>Nenhum valor foi debitado ou creditado em conta real.</div>
         </div>
       `;
-
       gameScreen.appendChild(modal);
   }
 
-  // REDIRECIONAMENTO FINAL DO FUNIL
   window.sairDoDemo = function(hashTarget) {
-      document.getElementById('page-game').classList.add('hidden'); // Esconde o canvas do jogo
-      
-      // Tenta achar a home page original pra ativar, se existir
+      document.getElementById('page-game').classList.add('hidden');
       var landing = document.getElementById('page-landing');
       if(landing) landing.classList.add('active'); 
-      
       var modal = document.getElementById('demoConversionModal');
       if (modal) modal.remove();
-      
-      window.location.hash = hashTarget; // Joga pra página de cadastro ou login
+      window.location.hash = hashTarget;
   };
 
   function updatePaletteColors() {
@@ -573,11 +551,8 @@
     platforms.forEach(function(p) {
       if (p.passed) return;
       p.segments.forEach(function(seg, s) {
-        if (seg.isKiller) {
-            seg.mesh.material.color.setHex(pal.killer); seg.mesh.material.emissive.setHex(pal.killer);
-        } else {
-            seg.mesh.material.color.setHex(s % 2 === 0 ? pal.platforms : pal.alt);
-        }
+        if (seg.isKiller) { seg.mesh.material.color.setHex(pal.killer); seg.mesh.material.emissive.setHex(pal.killer); } 
+        else { seg.mesh.material.color.setHex(s % 2 === 0 ? pal.platforms : pal.alt); }
       });
     });
   }

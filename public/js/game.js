@@ -394,42 +394,61 @@
     }
   }
 
+  // ===================== HUD ATUALIZADO =====================
   function createHUD() {
     cleanupHUD();
     var container = document.getElementById('gameCanvas').parentElement;
     hudContainer = document.createElement('div');
-    hudContainer.id = 'helix-hud';
-    hudContainer.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:100;';
+    hudContainer.id = 'hud-container';
+    hudContainer.style.cssText = 'position: fixed; top: 0px; left: 0px; right: 0px; bottom: 0px; z-index: 1000; display: block; font-family: "Inter", sans-serif; pointer-events: none;';
 
-    var html = '<div style="position:absolute;top:12px;left:12px;z-index:100;pointer-events:auto;background:rgba(0,0,0,0.55);color:#fff;padding:6px 14px;border-radius:12px;font-family:Inter,sans-serif;backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.15);">'
-      + '<div style="font-size:9px;text-transform:uppercase;letter-spacing:1px;opacity:0.7;">Entrada</div>'
-      + '<div style="font-size:16px;font-weight:800;" id="hud-entry-val">R$ 0,00</div></div>';
+    hudContainer.innerHTML = `
+        <div style="background: linear-gradient(rgba(0, 0, 0, 0.85) 0%, transparent 100%); padding: 12px 16px 30px; pointer-events: auto;">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+              <div style="display:flex;flex-direction:column;gap:2px">
+                <div style="font-size:11px;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.5px">Aposta</div>
+                <div id="hud-aposta" style="font-size:16px;font-weight:800;color:#fff">R$ ${fmtBRL(betAmount)}</div>
+              </div>
 
-    html += '<div style="position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:100;background:rgba(0,0,0,0.55);color:#fff;padding:8px 16px;border-radius:12px;font-family:Inter,sans-serif;min-width:160px;text-align:center;backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.15);max-width:calc(100% - 140px);">'
-      + '<div style="font-size:9px;text-transform:uppercase;letter-spacing:1px;opacity:0.7;">Progresso</div>'
-      + '<div style="font-size:14px;font-weight:800;" id="hud-progress-val">R$ 0,00 / R$ 0,00</div>'
-      + '<div style="width:100%;height:4px;background:rgba(255,255,255,0.15);border-radius:2px;margin-top:4px;overflow:hidden;">'
-      + '<div id="hud-progress-bar" style="width:0%;height:100%;background:linear-gradient(90deg,#00e676,#69f0ae);border-radius:2px;transition:width 0.3s;"></div></div></div>';
+              <div style="flex:1;max-width:360px;text-align:center">
+                <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:5px">
+                  <div id="hud-acumulado" style="font-size:20px;font-weight:800;color:#00C97A;transition:all .2s">R$ 0,00</div>
+                  <div style="font-size:12px;color:rgba(255,255,255,.4)">/</div>
+                  <div id="hud-meta" style="font-size:14px;color:rgba(255,255,255,.6)">R$ 0,00</div>
+                </div>
+                <div style="background:rgba(255,255,255,.1);border-radius:50px;height:6px;overflow:hidden">
+                  <div id="hud-barra" style="height: 100%; border-radius: 50px; background: linear-gradient(90deg, rgb(0, 201, 122), rgb(77, 158, 255)); width: 0%; transition: width 0.3s;"></div>
+                </div>
+                <div id="hud-plat" style="font-size:11px;color:rgba(255,255,255,.4);margin-top:4px">0 plataformas • +R$ 0,00/plat</div>
+              </div>
 
-    html += '<button id="hud-cashout" style="position:absolute;bottom:85px;left:50%;transform:translateX(-50%);z-index:9999;pointer-events:auto;background:linear-gradient(135deg,#FFD700,#FFB300);color:#000000;padding:12px 24px;border-radius:50px;font-family:Inter,sans-serif;cursor:pointer;font-weight:800;font-size:15px;text-transform:uppercase;letter-spacing:0.5px;border:1px solid #FFECB3;box-shadow:0 0 20px rgba(255,215,0,0.6);display:none;align-items:center;justify-content:center;gap:10px;white-space:nowrap;transition:all 0.3s;" onpointerdown="window.helixGameCashOut(event)" ontouchstart="window.helixGameCashOut(event)" onclick="window.helixGameCashOut(event)">'
-      + '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"></path><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"></path><path d="M4 22h16"></path><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"></path><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"></path><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"></path></svg>'
-      + '<span style="font-weight:900;">RESGATAR</span> <span id="hud-cashout-val" style="background:rgba(0,0,0,0.1);padding:3px 8px;border-radius:12px;font-weight:900;">R$ 0,00</span></button>';
+              <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+                <div style="font-size:11px;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.5px">Meta</div>
+                <div id="hud-meta-label" style="font-size:16px;font-weight:800;color:#FFD700">R$ 0,00</div>
+                <button onclick="window.stopHelixGame(); window.location.hash='#login'" style="
+                  background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);
+                  border-radius:8px;padding:4px 10px;color:rgba(255,255,255,.5);
+                  font-size:11px;cursor:pointer;font-family:inherit
+                ">Sair</button>
+              </div>
+            </div>
+        </div>
 
-    html += '<div id="hud-start" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:100;font-family:Inter,sans-serif;text-align:center;pointer-events:none;">'
-      + '<div style="font-size:20px;font-weight:700;color:rgba(0,0,0,0.6);">Toque para jogar</div>'
-      + '<div style="font-size:28px;margin-top:8px;color:rgba(0,0,0,0.4);animation:helixBounce 1s infinite;">&#8595;</div></div>';
+        <button id="hud-cashout" style="position:absolute;bottom:100px;left:50%;transform:translateX(-50%);z-index:9999;pointer-events:auto;background:linear-gradient(135deg,#FFD700,#FFB300);color:#000000;padding:12px 24px;border-radius:50px;font-family:Inter,sans-serif;cursor:pointer;font-weight:900;font-size:15px;text-transform:uppercase;letter-spacing:1px;border:none;box-shadow:0 10px 30px rgba(255,215,0,0.5);display:none;align-items:center;justify-content:center;gap:10px;white-space:nowrap;transition:all 0.3s;" onpointerdown="window.helixGameCashOut(event)" ontouchstart="window.helixGameCashOut(event)" onclick="window.helixGameCashOut(event)">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"></path><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"></path><path d="M4 22h16"></path><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"></path><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"></path><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"></path></svg>
+          RESGATAR <span id="hud-cashout-val" style="background:rgba(0,0,0,0.15);padding:3px 8px;border-radius:12px;">R$ 0,00</span>
+        </button>
 
-    html += '<div id="hud-combo" style="position:absolute;bottom:150px;left:50%;transform:translateX(-50%);z-index:100;pointer-events:none;font-family:Inter,sans-serif;font-size:24px;font-weight:800;color:#ffab00;text-shadow:0 2px 8px rgba(255,171,0,0.5);opacity:0;transition:all 0.3s;"></div>';
-
-    html += '<div id="hud-score-popup" style="position:absolute;top:45%;left:50%;transform:translate(-50%,-50%);z-index:100;pointer-events:none;font-family:Inter,sans-serif;font-size:36px;font-weight:900;color:#fff;text-shadow:0 2px 10px rgba(0,0,0,0.3);opacity:0;"></div>';
-
-    html += '<div style="position:absolute;bottom:30px;left:50%;transform:translateX(-50%);z-index:100;background:rgba(0,0,0,0.4);color:#fff;padding:6px 16px;border-radius:20px;font-family:Inter,sans-serif;backdrop-filter:blur(6px);font-size:13px;font-weight:600;">'
-      + '<span id="hud-platform-count">0</span> plataformas</div>';
-
-    hudContainer.innerHTML = html;
+        <div id="hud-start" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:100;font-family:Inter,sans-serif;text-align:center;pointer-events:none;">
+          <div style="font-size:22px;font-weight:700;color:rgba(255,255,255,0.7);text-shadow: 0 2px 10px rgba(0,0,0,0.5);">Toque para jogar</div>
+          <div style="font-size:32px;margin-top:10px;color:rgba(255,255,255,0.5);animation:helixBounce 1s infinite;">&#8595;</div>
+        </div>
+        <div id="hud-combo" style="position:absolute;bottom:180px;left:50%;transform:translateX(-50%);z-index:100;pointer-events:none;font-family:Inter,sans-serif;font-size:28px;font-weight:800;color:#ffab00;text-shadow:0 2px 15px rgba(255,171,0,0.6);opacity:0;transition:all 0.3s;"></div>
+        <div id="hud-score-popup" style="position:absolute;top:45%;left:50%;transform:translate(-50%,-50%);z-index:100;pointer-events:none;font-family:Inter,sans-serif;font-size:42px;font-weight:900;color:#fff;text-shadow:0 4px 20px rgba(0,0,0,0.4);opacity:0;"></div>
+    `;
 
     var style = document.createElement('style');
-    style.textContent = '@keyframes helixBounce{0%,100%{transform:translateY(0)}50%{transform:translateY(10px)}}@keyframes helixFadeUp{0%{opacity:1;transform:translate(-50%,-50%) scale(1)}100%{opacity:0;transform:translate(-50%,-80%) scale(1.5)}}@keyframes pulseGolden{0%,100%{box-shadow:0 0 15px rgba(255,215,0,0.6); transform:translateX(-50%) scale(1)}50%{box-shadow:0 0 35px rgba(255,215,0,1); transform:translateX(-50%) scale(1.04)}}';
+    style.textContent = '@keyframes helixBounce{0%,100%{transform:translateY(0)}50%{transform:translateY(15px)}}@keyframes helixFadeUp{0%{opacity:1;transform:translate(-50%,-50%) scale(1)}100%{opacity:0;transform:translate(-50%,-100%) scale(1.8)}}@keyframes pulseGolden{0%,100%{box-shadow:0 0 20px rgba(255,215,0,0.5); transform:translateX(-50%) scale(1)}50%{box-shadow:0 0 45px rgba(255,215,0,0.9); transform:translateX(-50%) scale(1.05)}}';
     hudContainer.appendChild(style);
     container.appendChild(hudContainer);
     
@@ -442,32 +461,39 @@
 
   function updateHUD() {
     if (!hudContainer) return;
-    var ev = document.getElementById('hud-entry-val');
-    var pv = document.getElementById('hud-progress-val');
-    var pb = document.getElementById('hud-progress-bar');
-    var cb = document.getElementById('hud-cashout');
-    var cv = document.getElementById('hud-cashout-val');
-    var ss = document.getElementById('hud-start');
-    var pc = document.getElementById('hud-platform-count');
-
-    if (ev) ev.textContent = 'R$ ' + fmtBRL(betAmount);
+    var accEl = document.getElementById('hud-acumulado');
+    var barEl = document.getElementById('hud-barra');
+    var metaEl = document.getElementById('hud-meta');
+    var labelEl = document.getElementById('hud-meta-label');
+    var platEl = document.getElementById('hud-plat');
+    var cashBtn = document.getElementById('hud-cashout');
+    var cashVal = document.getElementById('hud-cashout-val');
+    var startEl = document.getElementById('hud-start');
 
     var meta = betAmount * CONFIG.targetMultiplier;
     var prize = calcPrize(); prizeAmount = prize;
+    var percentage = Math.min(100, (prize / (meta || 1)) * 100);
 
-    if (pv) pv.textContent = 'R$ ' + fmtBRL(prize) + ' / R$ ' + fmtBRL(meta);
-    if (pb) pb.style.width = Math.min(100, (prize / (meta || 1)) * 100) + '%';
+    if (accEl) accEl.textContent = 'R$ ' + fmtBRL(prize);
+    if (metaEl) metaEl.textContent = 'R$ ' + fmtBRL(meta);
+    if (labelEl) labelEl.textContent = 'R$ ' + fmtBRL(meta);
+    if (barEl) barEl.style.width = percentage + '%';
     
-    if (cv) cv.textContent = 'R$ ' + fmtBRL(prize);
-
-    if (cb) {
-      var goalReached = prize >= meta && meta > 0;
-      cb.style.display = (gamePhase === 'playing' && goalReached) ? 'flex' : 'none';
-      if (goalReached) cb.style.animation = 'pulseGolden 2s infinite ease-in-out';
+    if (platEl) {
+        var valPerPlat = platformsPassed > 0 ? (prize / platformsPassed) : 0;
+        platEl.textContent = platformsPassed + ' plataformas • +R$ ' + fmtBRL(valPerPlat) + '/plat';
     }
 
-    if (ss) ss.style.display = gamePhase === 'ready' ? 'block' : 'none';
-    if (pc) pc.textContent = platformsPassed;
+    if (cashBtn) {
+      var goalReached = prize >= meta && meta > 0;
+      cashBtn.style.display = (gamePhase === 'playing' && goalReached) ? 'flex' : 'none';
+      if (goalReached) {
+          cashBtn.style.animation = 'pulseGolden 2s infinite ease-in-out';
+          if (cashVal) cashVal.textContent = 'R$ ' + fmtBRL(prize);
+      }
+    }
+
+    if (startEl) startEl.style.display = gamePhase === 'ready' ? 'block' : 'none';
   }
 
   function calcPrize() {
@@ -481,7 +507,6 @@
 
   function fmtBRL(v) { return v.toFixed(2).replace('.', ','); }
 
-  // FUNÇÃO DE ÁUDIO NATIVO DESBLOQUEADO (Compatível com iOS/Android)
   function unlockAudio() {
     if (audioUnlocked) return;
     try {
@@ -492,7 +517,6 @@
       if (audioCtx.state === 'suspended') {
         audioCtx.resume();
       }
-      // Toca um som vazio super rápido apenas para o iOS registrar que o áudio foi liberado
       var osc = audioCtx.createOscillator();
       var gainNode = audioCtx.createGain();
       gainNode.gain.value = 0;
@@ -500,62 +524,41 @@
       gainNode.connect(audioCtx.destination);
       osc.start(0);
       osc.stop(audioCtx.currentTime + 0.001);
-      
       audioUnlocked = true;
     } catch(e) {
       console.warn("Áudio não pôde ser desbloqueado", e);
     }
   }
 
-  // ====================================================================
-  // NOVO SOM DE MOEDA (Estilo Clássico / Arcade - Quadrada + Senoidal)
-  // ====================================================================
   function playMoneySound() {
     if (!audioUnlocked || !audioCtx) return;
     try {
       if (audioCtx.state === 'suspended') audioCtx.resume();
       var now = audioCtx.currentTime;
-
-      // Usamos dois osciladores para criar o som de "Moeda" 
       var osc1 = audioCtx.createOscillator();
       var osc2 = audioCtx.createOscillator();
       var gainNode = audioCtx.createGain();
-
-      // Onda quadrada: responsável pelo tom metálico clássico 8-bit (estilo Mario)
       osc1.type = 'square';
-      // Onda senoidal: encorpa o som
       osc2.type = 'sine';
-
-      // Frequências clássicas de moeda: Começa em B5 e pula rapidamente para E6
-      var note1 = 987.77; // Si
-      var note2 = 1318.51; // Mi
-
+      var note1 = 987.77; 
+      var note2 = 1318.51; 
       osc1.frequency.setValueAtTime(note1, now);
-      osc1.frequency.setValueAtTime(note2, now + 0.08); // Pulo da nota
-      
+      osc1.frequency.setValueAtTime(note2, now + 0.08); 
       osc2.frequency.setValueAtTime(note1, now);
       osc2.frequency.setValueAtTime(note2, now + 0.08);
-
-      // Desafina levemente a senoidal para dar brilho de "ouro" batendo
       osc2.detune.value = 8; 
-
-      // Configuração de volume: Ataque imediato, sustentação curta e eco suave (fade out)
       gainNode.gain.setValueAtTime(0, now);
-      gainNode.gain.linearRampToValueAtTime(0.15, now + 0.02); // Sobe o volume rápido
+      gainNode.gain.linearRampToValueAtTime(0.15, now + 0.02); 
       gainNode.gain.setValueAtTime(0.15, now + 0.08);
-      gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.4); // Desaparece aos poucos
-
+      gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.4); 
       osc1.connect(gainNode);
       osc2.connect(gainNode);
       gainNode.connect(audioCtx.destination);
-
       osc1.start(now);
       osc2.start(now);
       osc1.stop(now + 0.4);
       osc2.stop(now + 0.4);
-    } catch(e) { 
-      // Silencioso em caso de falha de hardware
-    }
+    } catch(e) { }
   }
 
   function showScorePopup(text) {
@@ -570,11 +573,9 @@
 
   function attachEvents() {
     var c = document.getElementById('gameCanvas');
-    // Adiciona o desbloqueio de áudio em TODOS os eventos de interação inicial
     ['mousedown', 'touchstart', 'click'].forEach(function(evt) {
         document.body.addEventListener(evt, unlockAudio, { once: true, capture: true });
     });
-
     c.addEventListener('mousedown', onDown);
     c.addEventListener('mousemove', onMove);
     c.addEventListener('mouseup', onUp);
@@ -601,7 +602,7 @@
   }
 
   function onDown(e) { 
-    unlockAudio(); // Força desbloqueio caso o listener global falhe
+    unlockAudio();
     if (e.target && (e.target.id === 'hud-cashout' || e.target.closest('#hud-cashout'))) return;
     if (gamePhase === 'gameover') return; 
     if (gamePhase === 'ready') startPlaying(); 
@@ -621,7 +622,7 @@
   function onUp() { isDragging = false; }
   
   function onTouchDown(e) { 
-    unlockAudio(); // Força desbloqueio no touch também
+    unlockAudio();
     if (e.target && (e.target.id === 'hud-cashout' || e.target.closest('#hud-cashout'))) return;
     if (e.cancelable) e.preventDefault(); 
     if (gamePhase === 'gameover') return; 
@@ -633,13 +634,11 @@
   function onTouchMove(e) { 
     if (e.cancelable) e.preventDefault(); 
     if (gamePhase === 'gameover') return; 
-    
     if(!isDragging) {
       isDragging = true;
       lastDragX = e.touches[0].clientX;
       return;
     } 
-    
     var dx = e.touches[0].clientX - lastDragX; 
     helixRotation += dx * CONFIG.rotationSensitivity; 
     if(helixGroup) helixGroup.rotation.y = helixRotation; 
@@ -668,21 +667,17 @@
     if (gamePhase === 'playing') {
       ballVelY += CONFIG.gravity;
       ballWorldY -= ballVelY;
-      
       if (ballMesh) {
         ballMesh.position.y = ballWorldY;
         var ballZ = (CONFIG.platformInnerRadius + CONFIG.platformOuterRadius) / 2;
         ballMesh.position.z = ballZ;
         ballMesh.position.x = 0;
       }
-      
       if (comboTimer > 0) { comboTimer--; if (comboTimer <= 0) comboCount = 0; }
       checkCollisions();
-      
       if (Math.abs(ballWorldY) > (lastGeneratedPlatformIndex - 10) * CONFIG.platformSpacing) {
           generateSinglePlatform(lastGeneratedPlatformIndex + 1);
       }
-
       for (var i = platforms.length - 1; i >= 0; i--) {
           if (platforms[i].y > ballWorldY + 15) {
               helixGroup.remove(platforms[i].group);
@@ -691,15 +686,12 @@
           }
       }
     }
-
     if (camera && gamePhase !== 'ready') {
       cameraTargetY = ballWorldY + CONFIG.cameraHeight;
       camera.position.y += (cameraTargetY - camera.position.y) * CONFIG.cameraFollowSpeed;
       camera.lookAt(0, camera.position.y - CONFIG.cameraHeight - CONFIG.cameraOffsetDown, 0);
     }
-
     updateSplash();
-
     var np = Math.min(Math.floor(platformsPassed / 5), PALETTES.length - 1);
     if (np !== currentPaletteIndex) { currentPaletteIndex = np; updatePaletteColors(); }
     updateHUD();
@@ -708,10 +700,8 @@
   function checkCollisions() {
     if (ballVelY <= 0) return;
     var ballAngle = normAngle((3 * Math.PI / 2) - helixRotation);
-    
     var ballRadiusAngle = Math.asin(CONFIG.ballRadius / ((CONFIG.platformInnerRadius + CONFIG.platformOuterRadius) / 2));
     var killMargin = ballRadiusAngle * 0.6; 
-
     for (var i = 0; i < platforms.length; i++) {
       var p = platforms[i];
       if (p.passed) continue;
@@ -726,22 +716,17 @@
           if (comboCount >= 3) showCombo(comboCount);
           var oldP = prizeAmount;
           var newP = calcPrize();
-          
-          // Som de moeda garantido e melhorado
           playMoneySound();
-          
           showScorePopup('+R$ ' + fmtBRL(newP - oldP));
           p.segments.forEach(function(seg) { seg.mesh.material.transparent = true; seg.mesh.material.opacity = 0.2; });
           createSplash(p.y);
           if (typeof onPlatformPassed === 'function') onPlatformPassed(platformsPassed);
         } else {
           var hitDanger = p.segments.some(seg => seg.isKiller && isAngleInRange(ballAngle, seg.startAngle - killMargin, seg.endAngle + killMargin));
-          
           if (hitDanger) { 
             if (ballMesh) ballMesh.visible = false;
             createSplash(ballWorldY);
             createSplash(ballWorldY - 0.1); 
-            
             triggerGameOver(); 
             return; 
           }
@@ -765,11 +750,7 @@
     gamePhase = 'gameover'; 
     var cb = document.getElementById('hud-cashout');
     if (cb) cb.style.display = 'none';
-    
-    setTimeout(function() {
-        gameActive = false;
-    }, 1500); 
-
+    setTimeout(function() { gameActive = false; }, 1500); 
     setTimeout(function() {
       if (typeof window.onGameEnd === 'function') window.onGameEnd(finalScore, false, finalPrize);
       else if (typeof onGameEnd === 'function') onGameEnd(finalScore, false, finalPrize);
