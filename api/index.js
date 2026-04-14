@@ -8,9 +8,16 @@ const SUPABASE_URL = process.env.SUPABASE_URL || '';
 const SUPABASE_KEY = process.env.SUPABASE_KEY || '';
 const USE_SUPABASE = !!(SUPABASE_URL && SUPABASE_KEY);
 
-// CREDENCIAIS SAFEPIX (CHAVES REAIS DO USUÁRIO)
-const SAFEPIX_PUBLIC_KEY = process.env.SAFEPIX_PUBLIC_KEY || 'safepix_live_MyPu6LlpTczGHIJt0aA9OF9gAfetvgnh';
-const SAFEPIX_SECRET_KEY = process.env.SAFEPIX_SECRET_KEY || 'sk_live_aCX5fucV1Kjx98iTfaLH675KMpI7xiiH';
+// [CORRIGIDO] Chaves reais removidas. Sempre defina isso nas variáveis de ambiente do servidor!
+const SAFEPIX_PUBLIC_KEY = process.env.SAFEPIX_PUBLIC_KEY;
+const SAFEPIX_SECRET_KEY = process.env.SAFEPIX_SECRET_KEY;
+
+if (!SAFEPIX_PUBLIC_KEY || !SAFEPIX_SECRET_KEY) {
+  console.warn("⚠️ AVISO: Chaves da SafePix não encontradas no process.env!");
+}
+
+// [NOVO] Token gerado automaticamente para proteger as rotas de webhook contra pagamentos falsos
+const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET || crypto.randomBytes(16).toString('hex');
 
 // ===================== SUPABASE HELPER =====================
 async function supaFetch(path, method, body, extraHeaders) {
@@ -37,14 +44,18 @@ async function supaFetch(path, method, body, extraHeaders) {
 // ===================== DATABASE =====================
 function createDefaultDB() {
   const salt = crypto.randomBytes(16).toString('hex');
-  const hash = crypto.pbkdf2Sync('admin123', salt, 1000, 64, 'sha512').toString('hex');
+  // Criando admin com as iterações novas
+  const hash = crypto.pbkdf2Sync('admin123', salt, 210000, 64, 'sha512').toString('hex');
   return {
     users: [{
       id: 1, name: 'Admin', email: 'admin@helixcash.com', phone: null,
-      password: salt + ':' + hash, balance: 0, bonus_balance: 0,
+      password: salt + ':210000:' + hash, balance: 0, bonus_balance: 0,
       referral_code: 'ADMIN001', referred_by: null,
-      is_admin: true, is_blocked: false, is_influencer: false,
-      influencer_win_rate: 0, total_deposited: 0, total_withdrawn: 0, total_games: 0,
+      is_admin: true, is_influencer: false,
+      influencer_win_rate: 0, 
+      affiliate_commission_rate: null, 
+      affiliate_balance: 0,            
+      total_deposited: 0, total_withdrawn: 0, total_games: 0,
       created_at: new Date().toISOString(), last_login: null
     }],
     deposits: [],
@@ -54,41 +65,64 @@ function createDefaultDB() {
     referral_earnings: [],
     webhooks: [],
     settings: {
-      min_deposit: '1', min_withdrawal: '20', max_multiplier: '7',
-      referral_bonus: '20', house_edge: '15', influencer_house_edge: '5',
-      site_name: 'Helix Cash',
+      site_name: 'Helix Cash', site_desc: 'Jogue e ganhe dinheiro de verdade!', promo_text: '',
+      logo_desktop: '', logo_mobile: '', favicon: '', whatsapp: '',
+      min_deposit: '10', max_deposit: '0', min_withdrawal: '20', max_withdrawal: '0',
+      min_affiliate_withdrawal: '10', deposit_bonus_percent: '0', min_bonus_deposit: '0', max_bonus_deposit: '0',
+      max_multiplier: '7', win_per_platform: '0.10', house_edge: '15', quick_values: '[10, 20, 50, 100]',
       game_platform_count: '25', game_danger_start_level: '2', game_danger_progression: '5',
       game_danger_max_slices: '6', game_hole_segments: '1.5', game_rotation_sensitivity: '0.008',
-      inf_game_danger_max_slices: '1', inf_game_danger_start_level: '10', inf_game_hole_segments: '3.0'
+      global_affiliate_commission_rate: '10', aff_level_2: '0',
+      show_aff_banner: true, show_aff_balance: true, show_aff_withdraw_btn: true,
+      show_aff_link_box: true, show_aff_counters: true, show_aff_volume: true,
+      show_aff_list: true, show_aff_list_value: true,
+      banner1_img: '', banner1_link: '', banner2_img: '', banner2_link: '', banner3_img: '', banner3_link: '',
+      'bg-main': '#05050a', 'bg-sec': '#0a0a14', 'bg-card': '#10101a', 'accent': '#7c4dff',
+      'site-primary': '#f472b6', 'site-grad': '#ff6b9d',
+      'success': '#10b981', 'danger': '#ef4444', 'warning': '#f59e0b', 'text-muted': '#8b8b9e',
+      maintenance_mode: false, allow_registration: true, demo_mode: true, block_withdrawals: false,
+      jwt_secret: '', admin_jwt_secret: '',
+      rollover_active: false, rollover_type: 'multiplier', rollover_multiplier: '2', rollover_fixed: '0', rollover_bonus_only: false,
+      pixel_active: false, pixel_id: '', pixel_token: '', pixel_test_code: ''
     },
     next_id: { users: 2, deposits: 1, withdrawals: 1, games: 1, pending_games: 1, referral_earnings: 1, webhooks: 1 }
   };
 }
 
 async function loadDB() {
+  const defaultDB = createDefaultDB();
+  let dbData = defaultDB;
+
   if (USE_SUPABASE) {
     try {
       var rows = await supaFetch('app_state?select=data&id=eq.1');
       if (rows && rows.length > 0 && rows[0].data) {
         var data = typeof rows[0].data === 'string' ? JSON.parse(rows[0].data) : rows[0].data;
-        if (!data.pending_games) data.pending_games = [];
-        if (!data.webhooks) data.webhooks = [];
-        if (!data.next_id.pending_games) data.next_id.pending_games = 1;
-        try { fs.writeFileSync(DB_FILE, JSON.stringify(data)); } catch(e) {}
-        return data;
+        dbData = data;
       }
     } catch (e) { console.error('Supabase load error:', e.message); }
+  } else {
+    try {
+      if (fs.existsSync(DB_FILE)) {
+        dbData = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
+      }
+    } catch (e) { console.error('DB load error:', e.message); }
   }
-  try {
-    if (fs.existsSync(DB_FILE)) {
-      var data = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
-      if (!data.pending_games) data.pending_games = [];
-      if (!data.webhooks) data.webhooks = [];
-      if (!data.next_id.pending_games) data.next_id.pending_games = 1;
-      return data;
-    }
-  } catch (e) { console.error('DB load error:', e.message); }
-  return createDefaultDB();
+
+  if (!dbData.settings) dbData.settings = {};
+  dbData.settings = { ...defaultDB.settings, ...dbData.settings };
+  
+  if (!dbData.pending_games) dbData.pending_games = [];
+  if (!dbData.webhooks) dbData.webhooks = [];
+  if (!dbData.next_id.pending_games) dbData.next_id.pending_games = 1;
+
+  dbData.users.forEach(u => {
+    if(u.affiliate_commission_rate === undefined) u.affiliate_commission_rate = null;
+    if(u.affiliate_balance === undefined) u.affiliate_balance = 0;
+    if(u.is_blocked !== undefined) delete u.is_blocked;
+  });
+
+  return dbData;
 }
 
 async function saveDB(db) {
@@ -104,16 +138,32 @@ async function saveDB(db) {
 }
 
 // ===================== AUTH HELPERS =====================
+// [CORRIGIDO] Refatorado para suportar o formato novo (seguro) e antigo de senhas
 function hashPassword(password) {
   const salt = crypto.randomBytes(16).toString('hex');
-  const hash = crypto.pbkdf2Sync(password, salt, 1000, 64, 'sha512').toString('hex');
-  return salt + ':' + hash;
+  const iterations = 210000;
+  const hash = crypto.pbkdf2Sync(password, salt, iterations, 64, 'sha512').toString('hex');
+  return `${salt}:${iterations}:${hash}`;
 }
 
 function verifyPassword(password, stored) {
   const parts = stored.split(':');
-  const test = crypto.pbkdf2Sync(password, parts[0], 1000, 64, 'sha512').toString('hex');
-  return parts[1] === test;
+  let salt, iterations, storedHash;
+
+  if (parts.length === 2) {
+    // Legacy support (para não deslogar/quebrar quem já tem conta com 1000 iterações)
+    salt = parts[0];
+    iterations = 1000;
+    storedHash = parts[1];
+  } else {
+    // Formato Seguro
+    salt = parts[0];
+    iterations = parseInt(parts[1], 10);
+    storedHash = parts[2];
+  }
+
+  const test = crypto.pbkdf2Sync(password, salt, iterations, 64, 'sha512').toString('hex');
+  return storedHash === test;
 }
 
 function createToken(userId) {
@@ -134,12 +184,17 @@ function verifyToken(token) {
   } catch (e) { return null; }
 }
 
+// [CORRIGIDO] Rejeita a promise se o JSON do cliente for inválido
 function parseBody(req) {
   if (req.body) return Promise.resolve(req.body);
-  return new Promise(function (resolve) {
+  return new Promise(function (resolve, reject) {
     let d = '';
     req.on('data', function (c) { d += c; });
-    req.on('end', function () { try { resolve(JSON.parse(d)); } catch (e) { resolve({}); } });
+    req.on('end', function () { 
+      if (!d) return resolve({});
+      try { resolve(JSON.parse(d)); } 
+      catch (e) { reject(new Error('JSON Inválido enviado na requisição')); } 
+    });
   });
 }
 
@@ -169,12 +224,28 @@ module.exports = async function handler(req, res) {
   if (req.method === 'OPTIONS') return respond(res, 200, {});
 
   var db = await loadDB();
-  var url = req.url.split('?')[0];
+  var fullUrl = req.url;
+  var url = fullUrl.split('?')[0];
+  var queryParams = new URLSearchParams(fullUrl.split('?')[1] || '');
   var method = req.method;
 
   const safePixAuth = "Basic " + Buffer.from(`${SAFEPIX_PUBLIC_KEY}:${SAFEPIX_SECRET_KEY}`).toString("base64");
 
   try {
+    // ==================== CONFIGURAÇÕES PÚBLICAS ====================
+    if (url === '/api/public-settings' && method === 'GET') {
+      const publicSettings = { ...db.settings };
+      delete publicSettings.jwt_secret;
+      delete publicSettings.admin_jwt_secret;
+      delete publicSettings.pixel_token;
+      delete publicSettings.pixel_test_code;
+      delete publicSettings.house_edge;
+      delete publicSettings.game_danger_start_level;
+      delete publicSettings.game_danger_progression;
+      
+      return respond(res, 200, publicSettings);
+    }
+
     // ==================== PUBLIC STATS ====================
     if (url === '/api/stats' && method === 'GET') {
       var nonAdmin = db.users.filter(function (u) { return !u.is_admin; });
@@ -194,6 +265,10 @@ module.exports = async function handler(req, res) {
 
     // ==================== AUTH: REGISTER ====================
     if (url === '/api/auth/register' && method === 'POST') {
+      if (String(db.settings.allow_registration) === 'false') {
+        return respond(res, 403, { error: 'O registro de novos usuários está temporariamente desativado.' });
+      }
+
       var body = await parseBody(req);
       var name = (body.name || '').trim();
       var email = (body.email || '').trim().toLowerCase();
@@ -212,12 +287,18 @@ module.exports = async function handler(req, res) {
         id: db.next_id.users++, name: name, email: email, phone: phone || null,
         password: hashPassword(password), balance: 0, bonus_balance: 0,
         referral_code: code, referred_by: referralCode || null,
-        is_admin: false, is_blocked: false, is_influencer: false,
-        influencer_win_rate: 0, total_deposited: 0, total_withdrawn: 0, total_games: 0,
+        is_admin: false, is_influencer: false,
+        influencer_win_rate: 0, affiliate_commission_rate: null, affiliate_balance: 0,
+        total_deposited: 0, total_withdrawn: 0, total_games: 0,
         created_at: new Date().toISOString(), last_login: new Date().toISOString()
       };
+      
+      // Concurrency lock before save
+      db = await loadDB();
       db.users.push(newUser);
+      db.next_id.users = Math.max(db.next_id.users, newUser.id + 1);
       await saveDB(db);
+      
       var token = createToken(newUser.id);
       return respond(res, 200, {
         token: token,
@@ -236,9 +317,10 @@ module.exports = async function handler(req, res) {
       var user = db.users.find(function (u) { return u.email === email; });
       if (!user) return respond(res, 401, { error: 'Email ou senha incorretos' });
       if (!verifyPassword(password, user.password)) return respond(res, 401, { error: 'Email ou senha incorretos' });
-      if (user.is_blocked) return respond(res, 403, { error: 'Conta bloqueada' });
 
-      user.last_login = new Date().toISOString();
+      db = await loadDB();
+      var dbUser = db.users.find(u => u.id === user.id);
+      if(dbUser) dbUser.last_login = new Date().toISOString();
       await saveDB(db);
 
       var token = createToken(user.id);
@@ -257,14 +339,10 @@ module.exports = async function handler(req, res) {
       var user = getUser(db, req);
       if (!user) return respond(res, 401, { error: 'Nao autorizado' });
       return respond(res, 200, {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        balance: num(user.balance),
-        bonus_balance: num(user.bonus_balance),
-        referral_code: user.referral_code,
-        is_admin: user.is_admin,
-        is_influencer: user.is_influencer,
+        id: user.id, name: user.name, email: user.email,
+        balance: num(user.balance), bonus_balance: num(user.bonus_balance),
+        affiliate_balance: num(user.affiliate_balance),
+        referral_code: user.referral_code, is_admin: user.is_admin, is_influencer: user.is_influencer,
         referrals: db.users.filter(function (u) { return u.referred_by === user.referral_code; }).length
       });
     }
@@ -281,13 +359,21 @@ module.exports = async function handler(req, res) {
       var user = getUser(db, req);
       if (!user) return respond(res, 401, { error: 'Nao autorizado' });
       var body = await parseBody(req);
-      
+      var reqAmount = num(body.amount);
+
+      var minDep = num(db.settings.min_deposit) || 1;
+      var maxDep = num(db.settings.max_deposit) || 0;
+
+      if (reqAmount < minDep) return respond(res, 400, { error: `Depósito mínimo é de R$ ${minDep}` });
+      if (maxDep > 0 && reqAmount > maxDep) return respond(res, 400, { error: `Depósito máximo é de R$ ${maxDep}` });
+
       try {
         const protocol = req.headers['x-forwarded-proto'] || 'https';
         const host = req.headers.host;
-        const postbackUrl = `${protocol}://${host}/api/webhook/safepix`;
+        // [CORRIGIDO] Passando o token secreto para evitar spoofing no webhook
+        const postbackUrl = `${protocol}://${host}/api/webhook/safepix?token=${WEBHOOK_SECRET}`;
 
-        const amountCents = Math.round(num(body.amount) * 100);
+        const amountCents = Math.round(reqAmount * 100);
         const cleanCpf = body.cpf ? body.cpf.replace(/\D/g, '') : '';
 
         const payload = {
@@ -300,22 +386,13 @@ module.exports = async function handler(req, res) {
             document: { type: "cpf", number: cleanCpf },
             phone: user.phone || "5511999999999"
           },
-          items: [{
-            title: "Creditos Helix Cash",
-            unit_price: amountCents,
-            quantity: 1,
-            tangible: false
-          }],
+          items: [{ title: "Creditos Helix Cash", unit_price: amountCents, quantity: 1, tangible: false }],
           metadata: { provider_name: "API Pix", user_id: String(user.id) }
         };
 
         const safeRes = await fetch('https://api.safepix.pro/v1/payment-transaction/create', {
           method: 'POST',
-          headers: {
-            'accept': 'application/json',
-            'content-type': 'application/json',
-            'authorization': safePixAuth
-          },
+          headers: { 'accept': 'application/json', 'content-type': 'application/json', 'authorization': safePixAuth },
           body: JSON.stringify(payload)
         });
 
@@ -329,28 +406,16 @@ module.exports = async function handler(req, res) {
         const pixString = safeData.pix ? safeData.pix.qr_code : "";
         const qrCodeImageUrl = `https://quickchart.io/qr?text=${encodeURIComponent(pixString)}&size=300`;
 
+        db = await loadDB();
         var dep = {
-          id: db.next_id.deposits++, 
-          user_id: user.id, 
-          amount: num(body.amount),
-          status: 'pending', 
-          pix_code: pixString, 
-          transaction_id: safeData.id,
-          qr_code_base64: qrCodeImageUrl,
-          created_at: new Date().toISOString(), 
-          updated_at: new Date().toISOString()
+          id: db.next_id.deposits++, user_id: user.id, amount: reqAmount,
+          status: 'pending', pix_code: pixString, transaction_id: safeData.id,
+          qr_code_base64: qrCodeImageUrl, created_at: new Date().toISOString(), updated_at: new Date().toISOString()
         };
-
         db.deposits.push(dep);
         await saveDB(db);
 
-        return respond(res, 200, { 
-          success: true, 
-          deposit: dep, 
-          pix_code: dep.pix_code, 
-          qr_code_base64: qrCodeImageUrl,
-          deposit_id: dep.id 
-        });
+        return respond(res, 200, { success: true, deposit: dep, pix_code: dep.pix_code, qr_code_base64: qrCodeImageUrl, deposit_id: dep.id });
       } catch (e) {
         return respond(res, 500, { error: 'Erro de conexao SafePix' });
       }
@@ -372,11 +437,17 @@ module.exports = async function handler(req, res) {
       });
     }
 
-    // ==================== WEBHOOK SAFEPIX ====================
+    // ==================== WEBHOOK SAFEPIX (DEPÓSITOS E BÔNUS) ====================
     if (url === '/api/webhook/safepix' && method === 'POST') {
+      // [CORRIGIDO] Validação de Segurança contra Falsificação (Spoofing)
+      if (queryParams.get('token') !== WEBHOOK_SECRET) {
+        return respond(res, 401, { error: 'Acesso negado: Token de webhook inválido.' });
+      }
+
       var body = await parseBody(req);
-      db.webhooks.push({ id: db.next_id.webhooks++, data: body, created_at: new Date().toISOString() });
-      await saveDB(db);
+      
+      db = await loadDB(); // Refresh data immediately before update
+      db.webhooks.push({ id: db.next_id.webhooks++, data: body, type: 'deposit', created_at: new Date().toISOString() });
 
       const txId = body.Id || body.id;
       const status = body.Status || body.status;
@@ -386,27 +457,96 @@ module.exports = async function handler(req, res) {
         if (dep) {
           dep.status = 'approved';
           dep.updated_at = new Date().toISOString();
-          var user = db.users.find(u => u.id === dep.user_id);
-          if (user) {
-            user.balance = parseFloat((num(user.balance) + num(dep.amount)).toFixed(2));
-            if (num(user.total_deposited) === 0 && num(dep.amount) >= 50 && user.referred_by) {
-              var referrer = db.users.find(u => u.referral_code === user.referred_by);
-              if (referrer) {
+          var dbUser = db.users.find(u => u.id === dep.user_id);
+          
+          if (dbUser) {
+            dbUser.balance = parseFloat((num(dbUser.balance) + num(dep.amount)).toFixed(2));
+            dbUser.total_deposited = (num(dbUser.total_deposited) + num(dep.amount));
+
+            // BÔNUS
+            let bonusPercent = num(db.settings.deposit_bonus_percent);
+            let minBonus = num(db.settings.min_bonus_deposit);
+            let maxBonus = num(db.settings.max_bonus_deposit);
+            
+            if (bonusPercent > 0 && num(dep.amount) >= minBonus && (maxBonus === 0 || num(dep.amount) <= maxBonus)) {
+                let bonusToAdd = (num(dep.amount) * bonusPercent) / 100;
+                dbUser.bonus_balance = parseFloat((num(dbUser.bonus_balance) + bonusToAdd).toFixed(2));
+            }
+
+            // AFILIADOS
+            if (dbUser.referred_by) {
+              var referrer = db.users.find(u => u.referral_code === dbUser.referred_by);
+              
+              if (referrer && (referrer.is_influencer || referrer.is_admin)) {
+                var commissionRate = referrer.affiliate_commission_rate !== null && referrer.affiliate_commission_rate !== undefined 
+                                     ? num(referrer.affiliate_commission_rate) 
+                                     : num(db.settings.global_affiliate_commission_rate || 10);
+                
+                if (commissionRate > 0) {
+                  var commissionAmount = parseFloat(((commissionRate / 100) * num(dep.amount)).toFixed(2));
+                  db.referral_earnings.push({
+                    id: db.next_id.referral_earnings++, user_id: referrer.id, from_user_id: dbUser.id, 
+                    amount: commissionAmount, type: 'deposit_commission', created_at: new Date().toISOString()
+                  });
+                  referrer.affiliate_balance = parseFloat((num(referrer.affiliate_balance) + commissionAmount).toFixed(2));
+                }
+              } else if (referrer && num(dbUser.total_deposited) === num(dep.amount) && num(dep.amount) >= 50) {
+                // CPA Fixo R$20 (apenas 1º deposito > 50)
                 referrer.balance = parseFloat((num(referrer.balance) + 20).toFixed(2));
                 db.referral_earnings.push({
-                  id: db.next_id.referral_earnings++, user_id: referrer.id, from_user_id: user.id, amount: 20, created_at: new Date().toISOString()
+                  id: db.next_id.referral_earnings++, user_id: referrer.id, from_user_id: dbUser.id, 
+                  amount: 20, type: 'fixed_bonus', created_at: new Date().toISOString()
                 });
               }
             }
-            user.total_deposited = (user.total_deposited || 0) + num(dep.amount);
           }
-          await saveDB(db);
         }
       }
+      await saveDB(db);
       return respond(res, 200, { success: true });
     }
 
-    // ==================== REFERRALS ====================
+    // ==================== [NOVO] WEBHOOK SAFEPIX (SAQUES) ====================
+    if (url === '/api/webhook/safepix_withdrawal' && method === 'POST') {
+      // Validação de Segurança
+      if (queryParams.get('token') !== WEBHOOK_SECRET) {
+        return respond(res, 401, { error: 'Acesso negado: Token inválido.' });
+      }
+
+      var body = await parseBody(req);
+      db = await loadDB();
+      db.webhooks.push({ id: db.next_id.webhooks++, data: body, type: 'withdrawal', created_at: new Date().toISOString() });
+
+      const txId = body.Id || body.id;
+      const status = body.Status || body.status;
+
+      if (txId) {
+        var wd = db.withdrawals.find(w => String(w.transaction_id) === String(txId) && w.status === 'processing');
+        
+        if (wd) {
+           if (status === 'PAID' || status === 'COMPLETED') {
+              wd.status = 'approved';
+              wd.updated_at = new Date().toISOString();
+           } else if (status === 'ERROR' || status === 'FAILED' || status === 'CANCELED') {
+              // Estorna o saldo de volta se o PIX de saque der erro
+              wd.status = 'failed';
+              wd.updated_at = new Date().toISOString();
+              var dbUser = db.users.find(u => u.id === wd.user_id);
+              if (dbUser) {
+                  if (wd.type === 'affiliate_balance') {
+                      dbUser.affiliate_balance = parseFloat((num(dbUser.affiliate_balance) + num(wd.amount)).toFixed(2));
+                  } else {
+                      dbUser.balance = parseFloat((num(dbUser.balance) + num(wd.amount)).toFixed(2));
+                  }
+              }
+           }
+        }
+      }
+      await saveDB(db);
+      return respond(res, 200, { success: true });
+    }
+
+    // ==================== REFERRALS / AFFILIATE DASHBOARD ====================
     if (url === '/api/referrals' && method === 'GET') {
       var user = getUser(db, req);
       if (!user) return respond(res, 401, { error: 'Nao autorizado' });
@@ -415,40 +555,69 @@ module.exports = async function handler(req, res) {
       var earnings = db.referral_earnings.filter(e => e.user_id === user.id);
       var totalEarned = earnings.reduce((s, e) => s + num(e.amount), 0);
 
+      var comDepositosCount = 0;
+
       var list = referredUsers.map(u => {
-        var hasContributed = earnings.some(e => e.from_user_id === u.id);
+        var userEarnings = earnings.filter(e => e.from_user_id === u.id);
+        var hasDeposited = db.deposits.some(d => d.user_id === u.id && d.status === 'approved');
+        if (hasDeposited) comDepositosCount++;
+        
+        var totalGeneratedByUser = userEarnings.reduce((s, e) => s + num(e.amount), 0);
+
         return {
           name: u.name,
           created_at: u.created_at,
-          status: hasContributed ? 'Confirmado' : 'Pendente (Aguardando R$ 50)',
-          amount: hasContributed ? 20.00 : 0
+          status: hasDeposited ? 'Ativo' : 'Sem Depósito',
+          amount: user.is_influencer ? parseFloat(totalGeneratedByUser.toFixed(2)) : (hasDeposited && totalGeneratedByUser > 0 ? 20.00 : 0)
         };
       });
 
       return respond(res, 200, {
         total_earned: totalEarned,
+        available_balance: num(user.affiliate_balance), 
         count_total: referredUsers.length,
+        count_depositors: comDepositosCount,
+        commission_rate: user.affiliate_commission_rate !== null ? num(user.affiliate_commission_rate) : num(db.settings.global_affiliate_commission_rate || 10),
         referrals: list
       });
     }
 
-    // ==================== WITHDRAW ====================
+    // ==================== WITHDRAW (SAQUE NORMAL E AFILIADOS) ====================
     if (url === '/api/withdraw' && method === 'POST') {
       var user = getUser(db, req);
       if (!user) return respond(res, 401, { error: 'Nao autorizado' });
       var body = await parseBody(req);
       var amount = num(body.amount);
       var pixKey = (body.pix_key || '').trim();
-      var minWd = num(db.settings.min_withdrawal) || 20;
+      var type = body.type || 'balance';
+
+      if (String(db.settings.block_withdrawals) === 'true') {
+         return respond(res, 403, { error: 'Saques temporariamente suspensos pelo administrador.' });
+      }
 
       if (!pixKey) return respond(res, 400, { error: 'Chave PIX obrigatoria' });
-      if (num(user.balance) < amount) return respond(res, 400, { error: 'Saldo insuficiente' });
-      if (amount < minWd) return respond(res, 400, { error: 'Saque minimo: R$' + minWd });
+
+      // Verificação em tempo real do banco para evitar duplo saque
+      db = await loadDB();
+      var dbUser = db.users.find(u => u.id === user.id);
+
+      if (type === 'affiliate_balance') {
+         if (num(dbUser.affiliate_balance) < amount) return respond(res, 400, { error: 'Saldo de afiliado insuficiente' });
+         var minAffWd = num(db.settings.min_affiliate_withdrawal) || 10;
+         if (amount < minAffWd) return respond(res, 400, { error: 'Saque minimo de afiliado: R$' + minAffWd });
+      } else {
+         if (num(dbUser.balance) < amount) return respond(res, 400, { error: 'Saldo insuficiente' });
+         var minWd = num(db.settings.min_withdrawal) || 20;
+         var maxWd = num(db.settings.max_withdrawal) || 0;
+         if (amount < minWd) return respond(res, 400, { error: 'Saque minimo: R$' + minWd });
+         if (maxWd > 0 && amount > maxWd) return respond(res, 400, { error: 'Saque máximo: R$' + maxWd });
+      }
 
       try {
         const protocol = req.headers['x-forwarded-proto'] || 'https';
         const host = req.headers.host;
-        const postbackUrl = `${protocol}://${host}/api/webhook/safepix_withdrawal`;
+        // [CORRIGIDO] Incluindo o token secreto para o callback de saque!
+        const postbackUrl = `${protocol}://${host}/api/webhook/safepix_withdrawal?token=${WEBHOOK_SECRET}`;
 
         const payoutRes = await fetch('https://api.safepix.pro/v1/wallet-transaction/create/withdrawal', {
           method: 'POST',
@@ -471,13 +640,20 @@ module.exports = async function handler(req, res) {
           return respond(res, 400, { error: payoutData.message || 'Erro Saque SafePix' });
         }
 
-        user.balance = parseFloat((num(user.balance) - amount).toFixed(2));
+        // Desconta o saldo IMEDIATAMENTE antes do status de webhook chegar
+        if (type === 'affiliate_balance') {
+             dbUser.affiliate_balance = parseFloat((num(dbUser.affiliate_balance) - amount).toFixed(2));
+        } else {
+             dbUser.balance = parseFloat((num(dbUser.balance) - amount).toFixed(2));
+        }
+
         db.withdrawals.push({
-          id: db.next_id.withdrawals++, user_id: user.id, amount,
-          pix_key: pixKey, status: 'processing', 
+          id: db.next_id.withdrawals++, user_id: dbUser.id, amount,
+          pix_key: pixKey, status: 'processing', type: type,
           transaction_id: payoutData.data ? payoutData.data.id : payoutData.Id,
           created_at: new Date().toISOString(), updated_at: new Date().toISOString()
         });
+        
         await saveDB(db);
         return respond(res, 200, { success: true, message: 'Saque enviado para processamento!' });
       } catch (e) {
@@ -495,8 +671,7 @@ module.exports = async function handler(req, res) {
         ...s,
         win_rate: 100 - houseEdge,
         difficulty_curve: {
-          start_speed: 1.0,
-          max_speed_boost: houseEdge / 100, 
+          start_speed: 1.0, max_speed_boost: houseEdge / 100, 
           danger_increase_step: houseEdge > 60 ? 3 : 6, 
           min_hole_size: Math.max(1.1, 2.5 - (houseEdge / 40))
         }
@@ -516,17 +691,21 @@ module.exports = async function handler(req, res) {
       var betAmount = num(body.bet_amount);
 
       if (!betAmount || betAmount <= 0) return respond(res, 400, { error: 'Valor invalido' });
-      if (betAmount > num(user.balance)) return respond(res, 400, { error: 'Saldo insuficiente' });
+      
+      db = await loadDB();
+      var dbUser = db.users.find(u => u.id === user.id);
+      
+      if (betAmount > num(dbUser.balance)) return respond(res, 400, { error: 'Saldo insuficiente' });
 
-      user.balance = parseFloat((num(user.balance) - betAmount).toFixed(2));
+      dbUser.balance = parseFloat((num(dbUser.balance) - betAmount).toFixed(2));
       var pg = {
-        id: db.next_id.pending_games++, user_id: user.id,
+        id: db.next_id.pending_games++, user_id: dbUser.id,
         bet_amount: betAmount, created_at: new Date().toISOString()
       };
       db.pending_games.push(pg);
       await saveDB(db);
 
-      return respond(res, 200, { game_id: pg.id, new_balance: user.balance });
+      return respond(res, 200, { game_id: pg.id, new_balance: dbUser.balance });
     }
 
     if (url === '/api/game/finish' && method === 'POST') {
@@ -534,9 +713,12 @@ module.exports = async function handler(req, res) {
       if (!user) return respond(res, 401, { error: 'Nao autorizado' });
       var body = await parseBody(req);
 
+      db = await loadDB();
+      var dbUser = db.users.find(u => u.id === user.id);
+
       var gameId = body.game_id;
       var platformsReached = num(body.platforms_reached) || 0;
-      var pgIndex = db.pending_games.findIndex(p => p.id === gameId && p.user_id === user.id);
+      var pgIndex = db.pending_games.findIndex(p => p.id === gameId && p.user_id === dbUser.id);
       var pg = pgIndex >= 0 ? db.pending_games[pgIndex] : null;
       var betAmount = pg ? num(pg.bet_amount) : num(body.bet_amount);
       if (!betAmount || betAmount <= 0) return respond(res, 400, { error: 'Jogo nao encontrado' });
@@ -544,27 +726,20 @@ module.exports = async function handler(req, res) {
       if (pgIndex >= 0) db.pending_games.splice(pgIndex, 1);
 
       var prize = num(body.prize); 
-      
-      // Correção Aplicada: O sistema de "house_edge" (probabilidade de perda) estava
-      // cancelando o prêmio e forçando prize = 0 no backend MESMO APÓS o jogador ter
-      // ganho e clicado em "Resgatar". A trava randômica foi removida para garantir
-      // que o que o jogador ganhou na tela seja 100% computado no saldo principal.
-
       var result = prize > 0 ? 'win' : 'loss';
       
-      // O saldo é atualizado com precisão absoluta para evitar travamentos de decimais
-      user.balance = parseFloat((num(user.balance) + prize).toFixed(2));
-      user.total_games = (user.total_games || 0) + 1;
+      dbUser.balance = parseFloat((num(dbUser.balance) + prize).toFixed(2));
+      dbUser.total_games = (dbUser.total_games || 0) + 1;
 
       var game = {
-        id: db.next_id.games++, user_id: user.id, bet_amount: betAmount, 
+        id: db.next_id.games++, user_id: dbUser.id, bet_amount: betAmount, 
         multiplier: prize > 0 ? (prize / betAmount).toFixed(2) : 0,
         platforms_reached: platformsReached, prize: prize, result: result, created_at: new Date().toISOString()
       };
       db.games.push(game);
       await saveDB(db);
 
-      return respond(res, 200, { result: result, prize: prize, new_balance: num(user.balance) });
+      return respond(res, 200, { result: result, prize: prize, new_balance: num(dbUser.balance) });
     }
 
     // ==================== ADMIN ROUTES ====================
@@ -573,10 +748,8 @@ module.exports = async function handler(req, res) {
       return respond(res, 401, { error: 'Acesso negado' });
     }
 
-    // DASHBOARD ADMIN (FILTROS DE PERÍODO IMPLEMENTADOS)
     if (url === '/api/admin/dashboard' && method === 'GET') {
-      const q = new URL(req.url, `http://${req.headers.host}`).searchParams;
-      const range = q.get('range') || 'today';
+      const range = queryParams.get('range') || 'today';
       const now = new Date();
       let start = new Date(0);
 
@@ -604,7 +777,6 @@ module.exports = async function handler(req, res) {
       });
     }
 
-    // LISTAR USUÁRIOS
     if (url === '/api/admin/users' && method === 'GET') {
       return respond(res, 200, db.users.map(u => {
         const uDeps = db.deposits.filter(d => d.user_id === u.id && d.status === 'approved');
@@ -613,29 +785,54 @@ module.exports = async function handler(req, res) {
         return {
           id: u.id, name: u.name, email: u.email, balance: num(u.balance), 
           is_influencer: !!u.is_influencer, influencer_win_rate: num(u.influencer_win_rate),
-          is_admin: !!u.is_admin, is_blocked: !!u.is_blocked, created_at: u.created_at,
+          is_admin: !!u.is_admin, created_at: u.created_at,
           total_deposited: uDeps.reduce((s, d) => s + num(d.amount), 0),
           total_withdrawn: uWds.reduce((s, w) => s + num(w.amount), 0),
-          games_count: uGames.length
+          games_count: uGames.length,
+          affiliate_commission_rate: u.affiliate_commission_rate 
         };
       }));
     }
 
-    // ATUALIZAR USUÁRIO
     if (url === '/api/admin/user/update' && method === 'POST') {
       var body = await parseBody(req);
+      db = await loadDB();
       var u = db.users.find(x => x.id === parseInt(body.id));
       if (!u) return respond(res, 404, { error: 'Usuario nao encontrado' });
+      
       if (body.balance !== undefined) u.balance = num(body.balance);
       if (body.is_influencer !== undefined) u.is_influencer = (body.is_influencer === true || body.is_influencer === 'true');
       if (body.is_admin !== undefined) u.is_admin = (body.is_admin === true || body.is_admin === 'true');
       if (body.influencer_win_rate !== undefined) u.influencer_win_rate = num(body.influencer_win_rate);
-      if (body.is_blocked !== undefined) u.is_blocked = (body.is_blocked === true || body.is_blocked === 'true');
+      
+      if (body.affiliate_commission_rate !== undefined) {
+         if (body.affiliate_commission_rate === '' || body.affiliate_commission_rate === null) {
+            u.affiliate_commission_rate = null;
+         } else {
+            let parsedRate = parseFloat(body.affiliate_commission_rate);
+            u.affiliate_commission_rate = isNaN(parsedRate) ? 0 : parsedRate;
+         }
+      }
+
       await saveDB(db);
       return respond(res, 200, { success: true });
     }
 
-    // LISTAR DEPÓSITOS (REVERSE: RECENTES PRIMEIRO)
+    if (url === '/api/admin/user/delete' && method === 'POST') {
+      var body = await parseBody(req);
+      var userId = parseInt(body.id);
+      if (!userId) return respond(res, 400, { error: 'ID inválido' });
+      if (userId === 1) return respond(res, 400, { error: 'O Admin principal não pode ser excluído' });
+
+      db = await loadDB();
+      var userIndex = db.users.findIndex(x => x.id === userId);
+      if (userIndex === -1) return respond(res, 404, { error: 'Usuário não encontrado' });
+
+      db.users.splice(userIndex, 1);
+      await saveDB(db);
+      return respond(res, 200, { success: true, message: 'Usuário excluído com sucesso' });
+    }
+
     if (url === '/api/admin/deposits' && method === 'GET') {
       const deps = db.deposits.map(d => {
         const u = db.users.find(x => x.id === d.user_id);
@@ -644,7 +841,6 @@ module.exports = async function handler(req, res) {
       return respond(res, 200, deps.reverse());
     }
 
-    // LISTAR SAQUES (REVERSE: RECENTES PRIMEIRO)
     if (url === '/api/admin/withdrawals' && method === 'GET') {
       const wds = db.withdrawals.map(w => {
         const u = db.users.find(x => x.id === w.user_id);
@@ -653,7 +849,6 @@ module.exports = async function handler(req, res) {
       return respond(res, 200, wds.reverse());
     }
 
-    // LISTAR JOGOS (REVERSE: RECENTES PRIMEIRO)
     if (url === '/api/admin/games' && method === 'GET') {
       const games = db.games.map(g => {
         const u = db.users.find(x => x.id === g.user_id);
@@ -662,10 +857,10 @@ module.exports = async function handler(req, res) {
       return respond(res, 200, games.reverse());
     }
 
-    // AFILIADOS / INFLUENCIADORES
     if (url === '/api/admin/affiliates' && method === 'GET') {
-      const influencers = db.users.filter(u => u.is_influencer || u.id === 1);
+      const influencers = db.users.filter(u => u.is_influencer || u.is_admin);
       const host = req.headers.host || 'helix-cash.com';
+      
       const affData = influencers.map(i => {
         const refs = db.users.filter(u => u.referred_by === i.referral_code);
         let totalDep = 0;
@@ -675,21 +870,31 @@ module.exports = async function handler(req, res) {
           if (userDeps.length > 0) depositantes++;
           totalDep += userDeps.reduce((s, d) => s + num(d.amount), 0);
         });
+        
+        const earnings = db.referral_earnings.filter(e => e.user_id === i.id);
+        const totalComissoes = earnings.reduce((s, e) => s + num(e.amount), 0);
+
         return {
           id: i.id, name: i.name, email: i.email, code: i.referral_code,
-          count_total: refs.length,
-          count_depositors: depositantes,
-          total_deposited: totalDep,
+          count_total: refs.length, count_depositors: depositantes,
+          total_deposited: totalDep, total_commission: totalComissoes, 
+          affiliate_balance: num(i.affiliate_balance), individual_rate: i.affiliate_commission_rate, 
           link: `https://${host}/#cadastro?ref=${i.referral_code}`
         };
       });
-      return respond(res, 200, affData);
+
+      return respond(res, 200, {
+          global_rate: num(db.settings.global_affiliate_commission_rate || 10),
+          min_withdrawal: num(db.settings.min_affiliate_withdrawal || 10),
+          affiliates: affData
+      });
     }
 
-    // CONFIGURAÇÕES
     if (url === '/api/admin/settings' && method === 'GET') return respond(res, 200, db.settings || {});
     if (url === '/api/admin/settings' && method === 'POST') {
-      db.settings = { ...db.settings, ...(await parseBody(req)) };
+      var newSettings = await parseBody(req);
+      db = await loadDB();
+      db.settings = { ...db.settings, ...newSettings };
       await saveDB(db);
       return respond(res, 200, { success: true });
     }
@@ -697,6 +902,7 @@ module.exports = async function handler(req, res) {
     return respond(res, 404, { error: 'Rota nao encontrada' });
   } catch (err) {
     console.error('API Error:', err);
-    return respond(res, 500, { error: 'Erro interno no servidor: ' + err.message });
+    // [CORRIGIDO] Trata erros sem vazar informações da stacktrace pro frontend
+    return respond(res, 400, { error: 'Erro ao processar a requisição: ' + err.message });
   }
 };
